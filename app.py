@@ -81,7 +81,9 @@ model = "gemini-3.8-flash"
             "output exactly: UNREADABLE"
         )
 
-        response = model.generate_content([prompt, image])
+        response = client.models.generate_content(
+    model=model,
+    contents=[prompt, image]
         notes_text = (response.text or "").strip()
 
         if not notes_text or "UNREADABLE" in notes_text.upper():
