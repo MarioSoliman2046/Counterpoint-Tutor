@@ -81,12 +81,6 @@ def parse_score_with_gemini(image):
         )
 
 
-
-
-import time
-
-start_time = time.time()
-
 response = client.models.generate_content(
     model="gemini-3.8-flash",
     contents=[prompt, image],
