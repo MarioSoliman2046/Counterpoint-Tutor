@@ -65,12 +65,12 @@ def parse_score_with_gemini(image):
     import re
 
     try:
-        import google.generativeai as genai
+       from google import genai
 
-        api_key = st.secrets["GEMINI_API_KEY"]
-        genai.configure(api_key=api_key)
+api_key = st.secrets["GEMINI_API_KEY"]
+client = genai.Client(api_key=api_key)
 
-        model = genai.GenerativeModel("gemini-1.5-flash")
+model = "gemini-3.8-flash"
 
         prompt = (
             "Transcribe the visible pitches in this two-voice counterpoint score. "
