@@ -133,21 +133,18 @@ if uploaded_file is not None:
         st.divider()
         run_analysis = st.button("🔍 Run Pedagogical AI Analysis", type="primary", use_container_width=True)
 
+    
     if run_analysis:
-        with st.spinner("Analyzing rules..."):
-            st.divider()
-            st.subheader("🎓 Academic Pedagogical Feedback Report")
-            feedback_report = [
-                {
-                    "measure": 2,
-                    "type": "Dissonant Harmonic Interval (P4)",
-                    "obs": "Measure 2: A harmonic interval of a Fourth was formed.",
-                    "rationale": "In First Species Counterpoint, Fux mandates strict consonance.",
-                    "rec": "Adjust the upper voice note by step motion to form a consonance."
-                }
-            ]
-            for item in feedback_report:
-                with st.expander(f"📌 Measure {item['measure']} ➔ Fault: {item['type']}", expanded=True):
-                    st.markdown(f"**• Observations:** {item['obs']}")
-                    st.markdown(f"**• Theoretical Rationale:** {item['rationale']}")
-                    st.markdown(f"**• Recommendation:** {item['rec']}")
+        st.divider()
+        st.subheader("🎓 Academic Pedagogical Feedback Report")
+
+        st.warning(
+            "Automated counterpoint rule analysis is not implemented yet. "
+            "The uploaded score has not been verified for counterpoint errors."
+        )
+
+        st.info(
+            "The next step is to extract the notes and voices reliably, "
+            "then check the applicable counterpoint rules before generating feedback."
+        )
+
