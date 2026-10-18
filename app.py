@@ -59,30 +59,73 @@ def generate_piano_note_wave(freq, duration=0.85, sr=22050):
     envelope = np.exp(-3.2 * t)
     return wave * envelope
 
+
 def parse_score_with_gemini(image):
-    """Uses Gemini API Key from Secrets to transcribe uploaded score image into exact notes."""
+    """Transcribe note pairs and reject invalid or empty responses."""
+    import re
+
     try:
         import google.generativeai as genai
+
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
-        
-        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
         prompt = (
-            "You are an expert musicologist. Analyze this counterpoint score image. "
-            "Extract the exact sequence of pitch pairs (Upper Voice, Lower Voice) for each measure. "
-            "Output ONLY the note pairs separated by space, e.g.: C4-C5 D4-F4 E4-G4 F4-A4 C4-C5"
+            "Transcribe the visible pitches in this two-voice counterpoint score. "
+            "For each aligned pair, output upper voice first, lower voice second. "
+            "Use scientific pitch notation, such as C4, F#4, or Bb3. "
+            "Output only pairs in this format: C4-G3 D4-A3 E4-B3. "
+            "Do not guess unreadable notes. If the score cannot be read reliably, "
+            "output exactly: UNREADABLE"
         )
-        response = model.generate_content([image, prompt])
-        notes_text = response.text.strip()
-        
+
+        response = model.generate_content([prompt, image])
+        notes_text = (response.text or "").strip()
+
+        if not notes_text or "UNREADABLE" in notes_text.upper():
+            st.error("The score could not be read reliably. Please upload a clearer image.")
+            return None
+
+        pitch_pattern = re.compile(
+            r"^[A-Ga-g](?:#|b)?[0-8]$"
+        )
         parsed_pairs = []
-        for pair in notes_text.split():
-            if '-' in pair:
-                parts = pair.split('-')
-                parsed_pairs.append((parts[0].strip().upper(), parts[1].strip().upper()))
+
+        for token in notes_text.split():
+            token = token.strip("`.,;:")
+            match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
+
+            if not match:
+                continue
+
+            upper_note = match.group(1)
+            lower_note = match.group(2)
+
+            if not (
+                pitch_pattern.fullmatch(upper_note)
+                and pitch_pattern.fullmatch(lower_note)
+            ):
+                continue
+
+            parsed_pairs.append(
+                (upper_note.upper(), lower_note.upper())
+            )
+
+        if not parsed_pairs:
+            st.error("No valid note pairs were extracted from the score.")
+            return None
+
         return parsed_pairs
+
     except Exception as e:
-        return [('C4', 'C5'), ('D4', 'F4'), ('E4', 'G4'), ('F4', 'A4'), ('C4', 'C5')]
+        st.error(
+            f"Score transcription failed ({type(e).__name__}). "
+            "Check the API configuration and try again."
+        )
+        return None
+
 
 def synthesize_piano_from_notes(note_pairs):
     sr = 22050
