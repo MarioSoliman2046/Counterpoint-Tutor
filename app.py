@@ -169,9 +169,17 @@ if uploaded_file is not None:
         if st.button("🎧 Hear Your Music Sheet (Acoustic Piano)", use_container_width=True):
             with st.spinner("Gemini AI is reading notes from your uploaded image..."):
                 extracted_notes = parse_score_with_gemini(image)
-                st.info(f"🎶 Read Notes: {extracted_notes}")
-                piano_audio, sr = synthesize_piano_from_notes(extracted_notes)
-                st.audio(piano_audio, sample_rate=sr)
+
+                if extracted_notes:
+                    st.info(f"🎶 Read Notes: {extracted_notes}")
+                    piano_audio, sr = synthesize_piano_from_notes(extracted_notes)
+                    st.audio(piano_audio, sample_rate=sr)
+                else:
+                    st.warning(
+                        "Audio playback was skipped because no reliable "
+                        "note pairs were extracted."
+                    )
+
 
         st.divider()
         run_analysis = st.button("🔍 Run Pedagogical AI Analysis", type="primary", use_container_width=True)
