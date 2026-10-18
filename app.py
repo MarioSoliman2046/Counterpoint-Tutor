@@ -80,8 +80,6 @@ def parse_score_with_gemini(image):
             "output exactly: UNREADABLE"
         )
 
-       import time
-
 start_time = time.time()
 
 
