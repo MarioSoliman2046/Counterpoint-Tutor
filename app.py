@@ -60,39 +60,38 @@ def generate_piano_note_wave(freq, duration=0.85, sr=22050):
     return wave * envelope
 
 
+
 def parse_score_with_gemini(image):
-    """Transcribe note pairs and reject invalid or empty responses."""
+    """Transcribe note pairs using the Gemini API."""
     import re
 
     try:
-       from google import genai
+        from google import genai
 
-api_key = st.secrets["GEMINI_API_KEY"]
-client = genai.Client(api_key=api_key)
-
-model = "gemini-3.8-flash"
+        api_key = st.secrets["GEMINI_API_KEY"]
+        client = genai.Client(api_key=api_key)
 
         prompt = (
             "Transcribe the visible pitches in this two-voice counterpoint score. "
             "For each aligned pair, output upper voice first, lower voice second. "
-            "Use scientific pitch notation, such as C4, F#4, or Bb3. "
+            "Use scientific pitch notation such as C4, F#4, or Bb3. "
             "Output only pairs in this format: C4-G3 D4-A3 E4-B3. "
             "Do not guess unreadable notes. If the score cannot be read reliably, "
             "output exactly: UNREADABLE"
         )
 
         response = client.models.generate_content(
-    model=model,
-    contents=[prompt, image]
+            model="gemini-2.5-flash",
+            contents=[prompt, image],
+        )
+
         notes_text = (response.text or "").strip()
 
         if not notes_text or "UNREADABLE" in notes_text.upper():
             st.error("The score could not be read reliably. Please upload a clearer image.")
             return None
 
-        pitch_pattern = re.compile(
-            r"^[A-Ga-g](?:#|b)?[0-8]$"
-        )
+        pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
         parsed_pairs = []
 
         for token in notes_text.split():
@@ -102,18 +101,10 @@ model = "gemini-3.8-flash"
             if not match:
                 continue
 
-            upper_note = match.group(1)
-            lower_note = match.group(2)
+            upper_note, lower_note = match.groups()
 
-            if not (
-                pitch_pattern.fullmatch(upper_note)
-                and pitch_pattern.fullmatch(lower_note)
-            ):
-                continue
-
-            parsed_pairs.append(
-                (upper_note.upper(), lower_note.upper())
-            )
+            if pitch_pattern.fullmatch(upper_note) and pitch_pattern.fullmatch(lower_note):
+                parsed_pairs.append((upper_note.upper(), lower_note.upper()))
 
         if not parsed_pairs:
             st.error("No valid note pairs were extracted from the score.")
@@ -123,8 +114,7 @@ model = "gemini-3.8-flash"
 
     except Exception as e:
         st.error(
-            f"Score transcription failed ({type(e).__name__}). "
-            "Check the API configuration and try again."
+            f"Score transcription failed ({type(e).__name__}): {e}"
         )
         return None
 
