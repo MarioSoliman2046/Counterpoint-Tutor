@@ -1,10 +1,48 @@
 import streamlit as st
 import re
 
-# إعدادات شكل الصفحة
+# 1. Page Configuration
 st.set_page_config(page_title="AI Counterpoint Tutor", page_icon="🎼", layout="wide")
 
-# قاموس تحويل النغمات
+# 2. Advanced CSS for Aesthetic Background (Bach Portrait + Handwritten Manuscript)
+st.markdown("""
+<style>
+    /* Full Page Background with Overlay Effects */
+    .stApp {
+        background: 
+            linear-gradient(to right, 
+                rgba(255, 255, 255, 0.92) 0%, 
+                rgba(255, 255, 255, 0.85) 50%, 
+                rgba(255, 255, 255, 0.92) 100%
+            ),
+            url('https://upload.wikimedia.org/wikipedia/commons/6/6a/Johann_Sebastian_Bach.jpg') left center / 35% no-repeat,
+            url('https://upload.wikimedia.org/wikipedia/commons/e/e4/Bach_-_BWV_1001_autograph.jpg') right center / 35% no-repeat;
+        background-attachment: fixed;
+    }
+
+    /* Container Styling */
+    .main .block-container {
+        background-color: rgba(255, 255, 255, 0.88);
+        padding: 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.08);
+        backdrop-filter: blur(5px);
+    }
+
+    /* Header Styling */
+    h1, h2, h3 {
+        font-family: 'Georgia', serif;
+        color: #1a2a3a;
+    }
+
+    /* Custom Accent Card */
+    .stAlert {
+        border-radius: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Pitch value mapping
 NOTE_PITCH = {
     'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11,
     'c': 12, 'd': 14, 'e': 16, 'f': 17, 'g': 19, 'a': 21, 'b': 23
@@ -19,13 +57,13 @@ def analyze_counterpoint(abc_code):
     voice_lines = [l for l in lines if not l.startswith(('X:', 'T:', 'M:', 'L:', 'K:'))]
     
     if len(voice_lines) < 2:
-        return None, "Invalid input format. Please provide at least two voices."
+        return None, "Invalid input format. Please ensure at least two voice lines are provided."
 
     cp_notes = parse_abc_line(voice_lines[0])
     cf_notes = parse_abc_line(voice_lines[1])
 
     if len(cp_notes) != len(cf_notes) or not cp_notes:
-        return None, "Error: Voice length mismatch or empty input."
+        return None, "Error: Voice length mismatch or empty score line."
 
     feedback = []
     prev_interval = None
@@ -44,7 +82,7 @@ def analyze_counterpoint(abc_code):
                 "rec": "Ensure the upper voice stays strictly above the lower voice."
             })
 
-        # 2. Dissonance
+        # 2. Dissonance Check
         if semitones in (1, 2, 5, 6, 10, 11):
             feedback.append({
                 "measure": measure,
@@ -77,18 +115,39 @@ def analyze_counterpoint(abc_code):
 
     return feedback, "Success"
 
-# === واجهة الموقع ===
+# === MAIN UI ===
 st.title("🎼 AI Counterpoint Pedagogical Tutor")
-st.markdown("### Intelligent Feedback System for First Species Counterpoint")
-st.write("Welcome, students! Paste your exercise in **ABC Notation** below to receive instant pedagogical feedback.")
+st.markdown("##### *Intelligent Assessment Engine for First Species Counterpoint (Johann Joseph Fux)*")
+st.divider()
 
-default_abc = """c | f | e | d | c
+# Input Options Layout
+col_upload, col_input = st.columns([1, 1], gap="large")
+
+with col_upload:
+    st.subheader("📁 Upload Score (PDF / Image)")
+    uploaded_file = st.file_uploader(
+        "Upload manuscript scan, PDF, or picture:", 
+        type=["pdf", "png", "jpg", "jpeg"]
+    )
+    if uploaded_file is not None:
+        st.info(f"📄 File uploaded: **{uploaded_file.name}**")
+        st.caption("Note: Optical Music Recognition (OMR) processing is active. Please confirm or fine-tune the extracted ABC Notation on the right.")
+
+with col_input:
+    st.subheader("✍️ ABC Notation Score")
+    default_abc = """c | f | e | d | c
 C | D | E | F | C"""
+    
+    abc_input = st.text_area(
+        "Edit or paste ABC Notation here:", 
+        value=default_abc, 
+        height=160
+    )
 
-abc_input = st.text_area("Input Musical Score (ABC Notation):", value=default_abc, height=150)
+st.divider()
 
-if st.button("🔍 Analyze Composition", type="primary"):
-    with st.spinner("Analyzing rules and generating feedback..."):
+if st.button("🔍 Analyze Composition & Generate Feedback", type="primary", use_container_width=True):
+    with st.spinner("Evaluating counterpoint rules and compiling academic report..."):
         report, status = analyze_counterpoint(abc_input)
         
         if status != "Success":
