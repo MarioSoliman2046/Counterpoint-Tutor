@@ -143,7 +143,11 @@ def parse_score_with_gemini(image):
     errors = []
 
     # إذا تعطل النموذج الأول، يجرّب نموذجًا احتياطيًا تلقائيًا.
-   for model_name in ("gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite",):
+   for model_name in (
+       "gemini-3.8-flash",
+       "gemini-3.6-flash",
+       "gemini-3.5-flash-lite",
+   ):
         try:
             response = client.models.generate_content(
                 model=model_name,
