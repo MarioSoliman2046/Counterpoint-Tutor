@@ -122,12 +122,15 @@ def parse_score_with_gemini(image):
         return None
 
     prompt = (
-        "Read the musical notes in the uploaded two-staff score from left to right. "
-        "For each aligned note position, return the upper-staff pitch first, "
-        "then the lower-staff pitch. Use scientific pitch names such as C4, F#4, "
-        "or Bb3. Return only pairs separated by spaces, like C4-G3 D4-A3. "
-        "Do not include explanations. If you cannot read the notes reliably, "
-        "return exactly UNREADABLE."
+        "Read every note in this two-staff musical score from left to right. "
+        "Identify the clef and key signature on each staff, and apply the key "
+        "signature and any local accidentals when naming each pitch. Ignore "
+        "the numbers and text printed below the notes. For each vertically "
+        "aligned position, return the upper-staff pitch first and the "
+        "lower-staff pitch second. Use scientific pitch notation such as "
+        "C4, F#4, or Bb3. Return only pairs separated by spaces, for example: "
+        "C4-G3 D4-A3 E4-B3. Do not reuse notes from any previous image. "
+        "If a note is unclear, return exactly UNREADABLE."
     )
 
     try:
