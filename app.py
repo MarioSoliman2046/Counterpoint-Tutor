@@ -64,6 +64,7 @@ import sys
 from pathlib import Path
 
 import homr.main as homr_main
+import onnxruntime
 from homr.transformer.configs import default_config
 
 model_dir = Path(os.environ["HOMR_WRITABLE_MODEL_DIR"])
@@ -91,6 +92,32 @@ for name in (
 ):
     old_path = getattr(default_config.filepaths, name)
     setattr(default_config.filepaths, name, str(model_dir / Path(old_path).name))
+
+# Some HOMR releases copy ONNX paths into module-level variables at import
+# time. Redirect those too, so inference uses the writable files downloaded above.
+for module in tuple(sys.modules.values()):
+    if module is None or not getattr(module, "__name__", "").startswith("homr."):
+        continue
+    for name, value in tuple(vars(module).items()):
+        if name.endswith("path_onnx") or name.endswith("path_onnx_fp16"):
+            if isinstance(value, (str, os.PathLike)):
+                setattr(module, name, str(model_dir / Path(value).name))
+
+# Last-resort compatibility for versions that pass an old package path
+# directly to ONNX Runtime after HOMR has already downloaded the same model.
+original_inference_session = onnxruntime.InferenceSession
+def writable_inference_session(model_path, *args, **kwargs):
+    if isinstance(model_path, (str, os.PathLike)):
+        requested = Path(model_path)
+        writable_copy = model_dir / requested.name
+        if not requested.exists() and writable_copy.exists():
+            model_path = str(writable_copy)
+    return original_inference_session(model_path, *args, **kwargs)
+
+for module in tuple(sys.modules.values()):
+    if module is not None and getattr(module, "InferenceSession", None) is original_inference_session:
+        module.InferenceSession = writable_inference_session
+onnxruntime.InferenceSession = writable_inference_session
 
 sys.argv = ["homer", sys.argv[1]]
 homr_main.main()
