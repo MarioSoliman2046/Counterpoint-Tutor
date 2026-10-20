@@ -114,23 +114,73 @@ def generate_piano_note_wave(freq, duration=0.85, sample_rate=22050):
 
 
 def parse_score_with_gemini(image):
-    """النغمات المقروءة يدويًا من صورة L6.png، العلوي ثم السفلي."""
-    return [
-        ("C4", "C3"),
-        ("F4", "A3"),
-        ("E4", "G3"),
-        ("D4", "F3"),
-        ("G4", "E3"),
-        ("E4", "G3"),
-        ("F4", "F3"),
-        ("A4", "D3"),
-        ("G4", "E3"),
-        ("F4", "F3"),
-        ("E4", "G3"),
-        ("D4", "B3"),
-        ("C4", "C4"),
-    ]
+    """قراءة أزواج النغمات من صورة التمرين: العلوي ثم السفلي."""
+    api_key = st.secrets.get("GEMINI_API_KEY")
 
+    if not api_key:
+        st.error("مفتاح Gemini غير موجود في إعدادات التطبيق.")
+        return None
+
+    prompt = (
+        "Read the musical notes in the uploaded two-staff score from left to right. "
+        "For each aligned note position, return the upper-staff pitch first, "
+        "then the lower-staff pitch. Use scientific pitch names such as C4, F#4, "
+        "or Bb3. Return only pairs separated by spaces, like C4-G3 D4-A3. "
+        "Do not include explanations. If you cannot read the notes reliably, "
+        "return exactly UNREADABLE."
+    )
+
+    try:
+        # تصغير الصورة لتقليل وقت رفعها ومعالجتها.
+        image_to_send = image.convert("RGB")
+        image_to_send.thumbnail((1400, 1400))
+
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=120_000),
+        )
+
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=[prompt, image_to_send],
+        )
+
+        notes_text = (response.text or "").strip()
+
+        if not notes_text or "UNREADABLE" in notes_text.upper():
+            st.error("لم أتمكن من قراءة النوتة بوضوح. جرّب صورة أوضح.")
+            return None
+
+        pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
+        parsed_pairs = []
+
+        for token in notes_text.split():
+            token = token.strip("`.,;:")
+            pair_match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
+
+            if not pair_match:
+                continue
+
+            upper_note, lower_note = pair_match.groups()
+
+            if (
+                pitch_pattern.fullmatch(upper_note)
+                and pitch_pattern.fullmatch(lower_note)
+            ):
+                parsed_pairs.append((upper_note, lower_note))
+
+        if not parsed_pairs:
+            st.error("وصل رد من Gemini، لكن لم أستطع استخراج أزواج نغمات منه.")
+            return None
+
+        return parsed_pairs
+
+    except Exception as error:
+        st.error(
+            f"تعذّرت قراءة التمرين. نوع الخطأ: {type(error).__name__}. "
+            "جرّب صورة أصغر، ثم أعد المحاولة."
+        )
+        return None
 
 def synthesize_piano_from_notes(note_pairs):
     """توليد ملف WAV من أزواج النغمات المستخرجة."""
