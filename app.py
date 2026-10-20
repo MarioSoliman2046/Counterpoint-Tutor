@@ -1,7 +1,8 @@
 import hashlib
 import io
-import shutil
+import os
 import subprocess
+import sys
 import tempfile
 import wave
 import xml.etree.ElementTree as ET
@@ -48,25 +49,62 @@ def pitch_to_midi(pitch):
 
 def homr_convert(image_bytes, suffix):
     """Run HOMR on one uploaded image and return its MusicXML text."""
-    # HOMR installs the command as "homr" in its documentation; some builds
-    # expose it as "homer" instead. Accept either command name.
-    executable = shutil.which("homr") or shutil.which("homer")
-    if not executable:
-        raise RuntimeError(
-            "محرّك قراءة النوتة غير مثبت. تأكد أن requirements.txt يحتوي homr[cpu] "
-            "وأن Streamlit أكمل إعادة تشغيل التطبيق."
-        )
-
     with tempfile.TemporaryDirectory(prefix="counterpoint_") as temp_dir:
         image_path = Path(temp_dir) / f"student_score{suffix}"
         image_path.write_bytes(image_bytes)
 
+        # HOMR normally saves downloaded neural-network weights beside its
+        # installed package. Streamlit's package directory is read-only, so
+        # redirect every model path to a writable temporary cache directory.
+        model_dir = Path(tempfile.gettempdir()) / "counterpoint_homr_models"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        bootstrap = r'''
+import os
+import sys
+from pathlib import Path
+
+import homr.main as homr_main
+from homr.transformer.configs import default_config
+
+model_dir = Path(os.environ["HOMR_WRITABLE_MODEL_DIR"])
+model_dir.mkdir(parents=True, exist_ok=True)
+
+import homr.segmentation.config as segmentation_config
+segmentation_config.segnet_path_onnx = str(
+    model_dir / Path(segmentation_config.segnet_path_onnx).name
+)
+segmentation_config.segnet_path_onnx_fp16 = str(
+    model_dir / Path(segmentation_config.segnet_path_onnx_fp16).name
+)
+for module in tuple(sys.modules.values()):
+    if module is not None and getattr(module, "__name__", "").startswith("homr."):
+        if hasattr(module, "segnet_path_onnx"):
+            module.segnet_path_onnx = segmentation_config.segnet_path_onnx
+        if hasattr(module, "segnet_path_onnx_fp16"):
+            module.segnet_path_onnx_fp16 = segmentation_config.segnet_path_onnx_fp16
+
+for name in (
+    "encoder_path",
+    "decoder_path",
+    "encoder_path_fp16",
+    "decoder_path_fp16",
+):
+    old_path = getattr(default_config.filepaths, name)
+    setattr(default_config.filepaths, name, str(model_dir / Path(old_path).name))
+
+sys.argv = ["homer", "--no-title", sys.argv[1]]
+homr_main.main()
+'''
+        env = os.environ.copy()
+        env["HOMR_WRITABLE_MODEL_DIR"] = str(model_dir)
+
         result = subprocess.run(
-            [executable, str(image_path)],
+            [sys.executable, "-c", bootstrap, str(image_path)],
             capture_output=True,
             text=True,
             timeout=300,
             check=False,
+            env=env,
         )
 
         xml_path = image_path.with_suffix(".musicxml")
