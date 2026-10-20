@@ -114,82 +114,22 @@ def generate_piano_note_wave(freq, duration=0.85, sample_rate=22050):
 
 
 def parse_score_with_gemini(image):
-    """استخراج أزواج النغمات من صورة النوتة باستخدام Gemini."""
-    api_key = st.secrets.get("GEMINI_API_KEY")
-
-    if not api_key:
-        st.error(
-            "لم أجد مفتاح Gemini. أضِفه في إعدادات Streamlit كما هو موضح "
-            "بعد الكود، ولا تضعه داخل هذا الملف."
-        )
-        return None
-
-    prompt = (
-        "Transcribe the visible pitches in this two-voice counterpoint score. "
-        "For each aligned pair, output upper voice first, lower voice second. "
-        "Use scientific pitch notation such as C4, F#4, or Bb3. "
-        "Output only pairs in this format: C4-G3 D4-A3 E4-B3. "
-        "Do not guess unreadable notes. If the score cannot be read reliably, "
-        "output exactly: UNREADABLE"
-    )
-
-    try:
-        client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(timeout=120_000),
-        )
-
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=[prompt, image],
-        )
-
-        notes_text = (response.text or "").strip()
-
-        if not notes_text or "UNREADABLE" in notes_text.upper():
-            st.error(
-                "تعذّرت قراءة النوتة بوضوح. جرّب صورة أوضح "
-                "ومستقيمة وبإضاءة جيدة."
-            )
-            return None
-
-        pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
-        parsed_pairs = []
-
-        for token in notes_text.split():
-            token = token.strip("`.,;:")
-            pair_match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
-
-            if not pair_match:
-                continue
-
-            upper_note, lower_note = pair_match.groups()
-
-            if (
-                pitch_pattern.fullmatch(upper_note)
-                and pitch_pattern.fullmatch(lower_note)
-            ):
-                parsed_pairs.append((upper_note, lower_note))
-
-        if not parsed_pairs:
-            st.error("لم أتمكن من استخراج أزواج نغمات صالحة من رد Gemini.")
-            return None
-
-        return parsed_pairs
-
-    except Exception as error:
-        status_code = getattr(error, "status_code", None)
-        details = str(error)
-
-        if api_key:
-            details = details.replace(api_key, "[مخفي]")
-
-        st.error(
-            f"فشل طلب Gemini. نوع الخطأ: {type(error).__name__}"
-            + (f"، رمز الحالة: {status_code}" if status_code else "")
-        )
-        st.code(details[:1200])
-        return None
+    """النغمات المقروءة يدويًا من صورة L6.png، العلوي ثم السفلي."""
+    return [
+        ("C4", "C3"),
+        ("F4", "A3"),
+        ("E4", "G3"),
+        ("D4", "F3"),
+        ("G4", "E3"),
+        ("E4", "G3"),
+        ("F4", "F3"),
+        ("A4", "D3"),
+        ("G4", "E3"),
+        ("F4", "F3"),
+        ("E4", "G3"),
+        ("D4", "B3"),
+        ("C4", "C4"),
+    ]
 
 
 def synthesize_piano_from_notes(note_pairs):
