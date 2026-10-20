@@ -48,7 +48,9 @@ def pitch_to_midi(pitch):
 
 def homr_convert(image_bytes, suffix):
     """Run HOMR on one uploaded image and return its MusicXML text."""
-    executable = shutil.which("homr")
+    # HOMR installs the command as "homr" in its documentation; some builds
+    # expose it as "homer" instead. Accept either command name.
+    executable = shutil.which("homr") or shutil.which("homer")
     if not executable:
         raise RuntimeError(
             "محرّك قراءة النوتة غير مثبت. تأكد أن requirements.txt يحتوي homr[cpu] "
@@ -60,7 +62,7 @@ def homr_convert(image_bytes, suffix):
         image_path.write_bytes(image_bytes)
 
         result = subprocess.run(
-            [executable, "--no-title", str(image_path)],
+            [executable, str(image_path)],
             capture_output=True,
             text=True,
             timeout=300,
