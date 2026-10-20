@@ -1,299 +1,278 @@
+import hashlib
 import io
-import re
+import shutil
+import subprocess
+import tempfile
 import wave
+import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import numpy as np
 import streamlit as st
 from PIL import Image, UnidentifiedImageError
-from google import genai
-from google.genai import types
 
 
-# إعداد الصفحة
 st.set_page_config(
-    page_title="AI Counterpoint Tutor",
+    page_title="مدرس الكونتربوينت",
     page_icon="🎼",
     layout="wide",
 )
 
-# التنسيق
 st.markdown(
     """
     <style>
-        .stApp {
-            background:
-                linear-gradient(
-                    to right,
-                    rgba(255, 255, 255, 0.94) 0%,
-                    rgba(255, 255, 255, 0.88) 50%,
-                    rgba(255, 255, 255, 0.94) 100%
-                ),
-                url('https://upload.wikimedia.org/wikipedia/commons/6/6a/Johann_Sebastian_Bach.jpg')
-                    left center / 35% no-repeat,
-                url('https://upload.wikimedia.org/wikipedia/commons/e/e4/Bach_-_BWV_1001_autograph.jpg')
-                    right center / 35% no-repeat;
-            background-attachment: fixed;
-            color: #111827;
-        }
-
-        .main .block-container {
-            background-color: rgba(255, 255, 255, 0.94);
-            padding: 2.5rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        h1, h2, h3, h4, h5, h6, p, span, label {
-            color: #0f172a !important;
-            font-family: Georgia, serif;
-        }
-
-        div[data-testid="stExpander"] {
-            background-color: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 10px !important;
-            margin-bottom: 10px !important;
-        }
-
-        div[data-testid="stExpander"] * {
-            color: #0f172a !important;
-        }
+      .stApp { background: #f4f6fa; color: #111827; }
+      .main .block-container {
+        background: rgba(255,255,255,.96); padding: 2rem;
+        border-radius: 14px; max-width: 1400px;
+      }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-
-def note_frequency(note_name):
-    """تحويل اسم نغمة مثل C4 أو F#4 أو Bb3 إلى تردد."""
-    match = re.fullmatch(r"([A-Ga-g])([#b]?)([0-8])", note_name.strip())
-    if not match:
-        raise ValueError(f"اسم النغمة غير صالح: {note_name}")
-
-    letter, accidental, octave_text = match.groups()
-    letter = letter.upper()
-    octave = int(octave_text)
-
-    semitones = {
-        "C": 0,
-        "D": 2,
-        "E": 4,
-        "F": 5,
-        "G": 7,
-        "A": 9,
-        "B": 11,
-    }
-
-    midi_number = (octave + 1) * 12 + semitones[letter]
-
-    if accidental == "#":
-        midi_number += 1
-    elif accidental == "b":
-        midi_number -= 1
-
-    return 440.0 * (2 ** ((midi_number - 69) / 12))
+PITCH_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 
 
-def generate_piano_note_wave(freq, duration=0.85, sample_rate=22050):
-    """توليد موجة صوتية بسيطة لنغمة واحدة."""
-    time_values = np.linspace(
-        0,
-        duration,
-        int(sample_rate * duration),
-        endpoint=False,
-    )
-
-    signal = (
-        np.sin(2 * np.pi * freq * time_values)
-        + 0.5 * np.sin(2 * np.pi * freq * 2 * time_values)
-        + 0.25 * np.sin(2 * np.pi * freq * 3 * time_values)
-    )
-
-    envelope = np.exp(-3.2 * time_values)
-    return signal * envelope
+def midi_name(midi):
+    return f"{PITCH_NAMES[midi % 12]}{midi // 12 - 1}"
 
 
-def parse_score_with_gemini(image):
-    """قراءة أزواج النغمات من الصورة: العلوي ثم السفلي."""
-    api_key = st.secrets.get("GEMINI_API_KEY")
+def pitch_to_midi(pitch):
+    step = pitch.findtext("step")
+    octave = pitch.findtext("octave")
+    alter = int(float(pitch.findtext("alter", "0")))
+    base = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}[step]
+    return (int(octave) + 1) * 12 + base + alter
 
-    if not api_key:
-        st.error("مفتاح Gemini غير موجود في إعدادات التطبيق.")
-        return None
 
-    prompt = (
-        "Read the notes in this two-staff musical score from left to right. "
-        "Identify both clefs and the key signature. Apply the key signature "
-        "and any accidentals. Ignore numbers and text below the staves. "
-        "For every vertically aligned note position, return the upper-staff "
-        "pitch first and the lower-staff pitch second. Use scientific pitch "
-        "names such as C4, F#4, or Bb3. Return only pairs separated by spaces, "
-        "for example: C4-G3 D4-A3 E4-B3. Do not reuse notes from previous images. "
-        "If the notes cannot be read, return exactly UNREADABLE."
-    )
+def homr_convert(image_bytes, suffix):
+    """Run HOMR on one uploaded image and return its MusicXML text."""
+    executable = shutil.which("homr")
+    if not executable:
+        raise RuntimeError(
+            "محرّك قراءة النوتة غير مثبت. تأكد أن requirements.txt يحتوي homr[cpu] "
+            "وأن Streamlit أكمل إعادة تشغيل التطبيق."
+        )
 
-    image_to_send = image.convert("RGB")
-    image_to_send.thumbnail((1400, 1400))
+    with tempfile.TemporaryDirectory(prefix="counterpoint_") as temp_dir:
+        image_path = Path(temp_dir) / f"student_score{suffix}"
+        image_path.write_bytes(image_bytes)
 
-    client = genai.Client(
-        api_key=api_key,
-        http_options=types.HttpOptions(timeout=90_000),
-    )
+        result = subprocess.run(
+            [executable, "--no-title", str(image_path)],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
 
-    errors = []
-
-    # إذا تعطل النموذج الأول، يجرّب نموذجًا احتياطيًا تلقائيًا.
-    for model_name in (
-        "gemini-3.8-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash-lite",
-     ):
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[prompt, image_to_send],
+        xml_path = image_path.with_suffix(".musicxml")
+        if result.returncode != 0 or not xml_path.exists():
+            details = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(
+                "لم يستطع محرّك قراءة هذه الصورة. "
+                + (details[-1000:] if details else "لم يُنتج ملف MusicXML.")
             )
+        return xml_path.read_text(encoding="utf-8")
 
-            notes_text = (response.text or "").strip()
 
-            if not notes_text or "UNREADABLE" in notes_text.upper():
-                errors.append(f"{model_name}: لم يستطع قراءة النوتة.")
-                continue
+def parse_musicxml(xml_text):
+    """Read note pitches, staff numbers, durations, meter, and tempo."""
+    root = ET.fromstring(xml_text)
+    events = []
+    divisions = 1
+    tempo = 120.0
+    score_beats = 0.0
+    first_meter = None
 
-            pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
-            parsed_pairs = []
+    parts = root.findall(".//part")
+    if not parts:
+        raise ValueError("ملف النوتة الناتج لا يحتوي على مدرّج قابل للقراءة.")
 
-            for token in notes_text.split():
-                token = token.strip("`.,;:")
-                pair_match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
+    for part in parts:
+        part_offset = 0.0
+        for measure in part.findall("measure"):
+            cursor = 0.0
+            previous_onset = 0.0
+            for child in measure:
+                tag = child.tag.split("}")[-1]
+                if tag == "attributes":
+                    div = child.findtext("divisions")
+                    if div:
+                        divisions = max(1, int(div))
+                    time_node = child.find("time")
+                    if time_node is not None:
+                        beats = int(time_node.findtext("beats", "4").split("+")[0])
+                        beat_type = int(time_node.findtext("beat-type", "4"))
+                        meter_beats = beats * 4.0 / beat_type
+                        if first_meter is None:
+                            first_meter = (beats, beat_type)
+                elif tag == "direction":
+                    sound = child.find("sound")
+                    if sound is not None and sound.get("tempo"):
+                        tempo = float(sound.get("tempo"))
+                    metronome = child.find(".//metronome/per-minute")
+                    if metronome is not None and metronome.text:
+                        tempo = float(metronome.text)
+                elif tag == "note":
+                    duration = int(child.findtext("duration", "0")) / divisions
+                    # A chord note shares the onset of the preceding note.
+                    is_chord = child.find("chord") is not None
+                    if is_chord:
+                        onset = previous_onset
+                    else:
+                        onset = cursor
+                        previous_onset = onset
 
-                if not pair_match:
-                    continue
+                    if child.find("rest") is None:
+                        pitch = child.find("pitch")
+                        if pitch is not None:
+                            midi = pitch_to_midi(pitch)
+                            staff = int(child.findtext("staff", "1"))
+                            events.append({
+                                "beat": part_offset + onset,
+                                "duration_beats": max(duration, 0.25),
+                                "staff": staff,
+                                "midi": midi,
+                                "name": midi_name(midi),
+                            })
+                    if not is_chord:
+                        cursor += duration
+                elif tag in ("backup", "forward"):
+                    amount = int(child.findtext("duration", "0")) / divisions
+                    if tag == "backup":
+                        cursor = max(0.0, cursor - amount)
+                    else:
+                        cursor += amount
 
-                upper_note, lower_note = pair_match.groups()
-
-                if (
-                    pitch_pattern.fullmatch(upper_note)
-                    and pitch_pattern.fullmatch(lower_note)
-                ):
-                    parsed_pairs.append((upper_note, lower_note))
-
-            if parsed_pairs:
-                return parsed_pairs
-
-            errors.append(f"{model_name}: لم يرجع أزواج نغمات مفهومة.")
-
-        except Exception as error:
-            errors.append(
-                f"{model_name}: {type(error).__name__}: {str(error)[:250]}"
+            # A measure normally has a fixed length from its time signature.
+            # Keep the larger of the notated meter and the actual event extent.
+            measure_length = max(
+                locals().get("meter_beats", 4.0),
+                locals().get("cursor", 0.0),
+                1.0,
             )
+            part_offset += measure_length
+            score_beats = max(score_beats, part_offset)
 
-    st.error("تعذّرت قراءة الصورة بالنموذجين. التفاصيل:")
-    for error_message in errors:
-        st.write(error_message)
+    if not events:
+        raise ValueError("لم أجد نغمات في النتيجة. جرّب صورة أوضح ومقصوصة حول المدرّجين.")
 
-    return None
+    # Group notes occurring at the same musical time; staff 1 is upper, staff 2 lower.
+    grouped = {}
+    for event in events:
+        key = round(event["beat"], 4)
+        grouped.setdefault(key, {"beat": event["beat"], "upper": [], "lower": [], "durations": []})
+        voice = "upper" if event["staff"] == 1 else "lower"
+        grouped[key][voice].append(event["midi"])
+        grouped[key]["durations"].append(event["duration_beats"])
 
-def synthesize_piano_from_notes(note_pairs):
-    """توليد ملف WAV من أزواج النغمات المستخرجة."""
+    output = []
+    for _, event in sorted(grouped.items()):
+        output.append({
+            "beat": event["beat"],
+            "upper": event["upper"],
+            "lower": event["lower"],
+            "duration_beats": max(event["durations"] or [1.0]),
+        })
+    return output, tempo, first_meter, score_beats
+
+
+def piano_note(freq, duration, sample_rate):
+    n = max(1, int(duration * sample_rate))
+    t = np.arange(n, dtype=np.float32) / sample_rate
+    fundamental = (
+        np.sin(2 * np.pi * freq * t)
+        + 0.48 * np.sin(2 * np.pi * freq * 2 * t)
+        + 0.22 * np.sin(2 * np.pi * freq * 3 * t)
+        + 0.10 * np.sin(2 * np.pi * freq * 4 * t)
+    )
+    attack = np.minimum(1.0, t / 0.012)
+    release = np.minimum(1.0, np.maximum(0.0, (duration - t) / 0.06))
+    envelope = np.exp(-2.0 * t) * attack * release
+    return fundamental * envelope
+
+
+def synthesize_score(events, bpm):
     sample_rate = 22050
-    audio_parts = []
+    seconds_per_beat = 60.0 / bpm
+    end_beats = max(
+        event["beat"] + event["duration_beats"] for event in events
+    ) + 0.15
+    audio = np.zeros(int(end_beats * seconds_per_beat * sample_rate), dtype=np.float32)
 
-    for upper_note, lower_note in note_pairs:
-        # الزوج المستخرج ترتيبه: الصوت العلوي ثم الصوت السفلي.
-        upper_wave = generate_piano_note_wave(
-            note_frequency(upper_note),
-            sample_rate=sample_rate,
-        )
-        lower_wave = generate_piano_note_wave(
-            note_frequency(lower_note),
-            sample_rate=sample_rate,
-        )
+    for event in events:
+        start = int(event["beat"] * seconds_per_beat * sample_rate)
+        duration = max(0.12, event["duration_beats"] * seconds_per_beat * 0.92)
+        for midi in event["upper"] + event["lower"]:
+            freq = 440.0 * (2 ** ((midi - 69) / 12))
+            note = piano_note(freq, duration, sample_rate) * 0.34
+            stop = min(len(audio), start + len(note))
+            if stop > start:
+                audio[start:stop] += note[:stop - start]
 
-        chord = upper_wave + lower_wave
-        peak = np.max(np.abs(chord))
+    peak = float(np.max(np.abs(audio))) if len(audio) else 0.0
+    if peak > 0:
+        audio = audio / peak * 0.88
 
-        if peak > 0:
-            chord = chord / peak * 0.8
-
-        audio_parts.append(chord)
-
-    audio_array = np.concatenate(audio_parts)
-    pcm_audio = np.int16(np.clip(audio_array, -1.0, 1.0) * 32767)
-
-    wav_buffer = io.BytesIO()
-
-    with wave.open(wav_buffer, "wb") as wav_file:
+    buffer = io.BytesIO()
+    pcm = np.int16(np.clip(audio, -1.0, 1.0) * 32767)
+    with wave.open(buffer, "wb") as wav_file:
         wav_file.setnchannels(1)
         wav_file.setsampwidth(2)
         wav_file.setframerate(sample_rate)
-        wav_file.writeframes(pcm_audio.tobytes())
+        wav_file.writeframes(pcm.tobytes())
+    return buffer.getvalue()
 
-    return wav_buffer.getvalue()
 
-
-# واجهة التطبيق
-st.title("🎼 مدرس الهارموني والكونتربوينت بالذكاء الاصطناعي")
-st.markdown("##### *قراءة النوتة وتشغيل النغمات المستخرجة*")
-st.divider()
-
-st.subheader("📁 ارفع صورة النوتة")
-uploaded_file = st.file_uploader(
-    "اختر صورة بصيغة PNG أو JPG:",
-    type=["png", "jpg", "jpeg"],
+st.title("🎼 مدرس الكونتربوينت")
+st.markdown("ارفع صورة نوتة مطبوعة بصيغة PNG أو JPG لقراءة الصوتين وتشغيلهما معًا.")
+st.info(
+    "لأفضل نتيجة: ارفع صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، "
+    "بما في ذلك المفتاح الموسيقي وعلامات التحويل."
 )
 
-if uploaded_file is not None:
+uploaded = st.file_uploader("اختر صورة النوتة", type=["png", "jpg", "jpeg"])
+
+if uploaded:
+    file_bytes = uploaded.getvalue()
     try:
-        image = Image.open(uploaded_file).convert("RGB")
+        image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
     except (UnidentifiedImageError, OSError):
-        st.error("الملف المرفوع ليس صورة صالحة. اختر ملف PNG أو JPG.")
+        st.error("الصورة غير صالحة. اختر ملف PNG أو JPG.")
         st.stop()
 
-    st.success(f"تم رفع الملف: **{uploaded_file.name}**")
+    st.image(image, caption=uploaded.name, use_container_width=True)
+    bpm = st.slider("سرعة التشغيل (نبضة في الدقيقة)", 40, 180, 100)
 
-    col_preview, col_controls = st.columns([1.2, 1], gap="large")
+    digest = hashlib.sha256(file_bytes).hexdigest()
+    if st.button("🎹 اقرأ النوتة وشغّل الصوتين", type="primary"):
+        with st.spinner("تتم قراءة النوتة. قد يستغرق التحليل الأول وقتًا أطول..."):
+            try:
+                xml_text = homr_convert(file_bytes, Path(uploaded.name).suffix.lower())
+                events, detected_tempo, meter, total_beats = parse_musicxml(xml_text)
+                st.session_state["score_result"] = (digest, events, detected_tempo, meter)
+            except subprocess.TimeoutExpired:
+                st.error("انتهى وقت قراءة الصورة. جرّب صورة أصغر وواضحة.")
+                st.session_state.pop("score_result", None)
+            except Exception as error:
+                st.error(f"تعذّرت قراءة النوتة: {error}")
+                st.session_state.pop("score_result", None)
 
-    with col_preview:
-        st.write("### 🎵 معاينة النوتة")
-        st.image(image, use_container_width=True)
+    saved = st.session_state.get("score_result")
+    if saved and saved[0] == digest:
+        _, events, detected_tempo, meter = saved
+        st.success(f"تم استخراج {len(events)} موضعًا موسيقيًا.")
+        if meter:
+            st.caption(f"الميزان المكتشف: {meter[0]}/{meter[1]}")
+        st.caption("النغمات المستخرجة: الصوت العلوي ثم الصوت السفلي")
+        for event in events:
+            upper = " + ".join(midi_name(n) for n in event["upper"]) or "سكتة"
+            lower = " + ".join(midi_name(n) for n in event["lower"]) or "سكتة"
+            st.write(f"العلوي: **{upper}**　|　السفلي: **{lower}**")
+        st.audio(synthesize_score(events, bpm), format="audio/wav")
 
-    with col_controls:
-        st.write("### 🎹 تشغيل النغمات")
-        st.write("اضغط الزر لتحليل الصورة وتشغيل النغمات التي يتعرف عليها Gemini.")
-
-        if st.button(
-            "🎧 اقرأ النوتة وشغّلها",
-            use_container_width=True,
-        ):
-            with st.spinner("Gemini يقرأ النوتة الآن..."):
-                extracted_notes = parse_score_with_gemini(image)
-
-            if extracted_notes:
-                st.info(f"النغمات المستخرجة (الصوت العلوي، ثم السفلي): {extracted_notes}")
-                audio_bytes = synthesize_piano_from_notes(extracted_notes)
-                st.audio(audio_bytes, format="audio/wav")
-
-        st.divider()
-
-        run_analysis = st.button(
-            "🔍 تحليل تربوي",
-            type="primary",
-            use_container_width=True,
-        )
-
-    if run_analysis:
-        st.divider()
-        st.subheader("🎓 ملاحظات تعليمية")
-
-        st.warning(
-            "تحليل قواعد الكونتربوينت غير مطبّق بعد؛ "
-            "لم يتم التحقق من وجود أخطاء في النوتة."
-        )
-
-        st.info(
-            "الخطوة التالية هي استخراج النغمات والأصوات بدقة، "
-            "ثم التحقق من قواعد الكونتربوينت المناسبة قبل إنشاء الملاحظات."
-        )
-else:
-    st.info("ارفع صورة للنوتة حتى تبدأ.")
+st.divider()
+st.subheader("تحليل الكونتربوينت")
+st.info("سيُضاف تحليل قواعد الكونتربوينت بعد تثبيت قراءة النوتة وتشغيلها.")
