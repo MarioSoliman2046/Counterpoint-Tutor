@@ -178,12 +178,17 @@ def parse_score_with_gemini(image):
         return parsed_pairs
 
     except Exception as error:
-        # لا نعرض تفاصيل الاستثناء، حتى لا تظهر معلومات حساسة في الواجهة.
+        status_code = getattr(error, "status_code", None)
+        details = str(error)
+
+        if api_key:
+            details = details.replace(api_key, "[مخفي]")
+
         st.error(
-            "فشل الاتصال بـ Gemini أو معالجة الصورة. "
-            "تحقق من إعداد المفتاح والاتصال بالإنترنت، ثم حاول مجددًا. "
-            f"(نوع الخطأ: {type(error).__name__})"
+            f"فشل طلب Gemini. نوع الخطأ: {type(error).__name__}"
+            + (f"، رمز الحالة: {status_code}" if status_code else "")
         )
+        st.code(details[:1200])
         return None
 
 
