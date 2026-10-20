@@ -114,7 +114,7 @@ def generate_piano_note_wave(freq, duration=0.85, sample_rate=22050):
 
 
 def parse_score_with_gemini(image):
-    """قراءة أزواج النغمات من صورة التمرين: العلوي ثم السفلي."""
+    """قراءة أزواج النغمات من الصورة: العلوي ثم السفلي."""
     api_key = st.secrets.get("GEMINI_API_KEY")
 
     if not api_key:
@@ -122,68 +122,73 @@ def parse_score_with_gemini(image):
         return None
 
     prompt = (
-        "Read every note in this two-staff musical score from left to right. "
-        "Identify the clef and key signature on each staff, and apply the key "
-        "signature and any local accidentals when naming each pitch. Ignore "
-        "the numbers and text printed below the notes. For each vertically "
-        "aligned position, return the upper-staff pitch first and the "
-        "lower-staff pitch second. Use scientific pitch notation such as "
-        "C4, F#4, or Bb3. Return only pairs separated by spaces, for example: "
-        "C4-G3 D4-A3 E4-B3. Do not reuse notes from any previous image. "
-        "If a note is unclear, return exactly UNREADABLE."
+        "Read the notes in this two-staff musical score from left to right. "
+        "Identify both clefs and the key signature. Apply the key signature "
+        "and any accidentals. Ignore numbers and text below the staves. "
+        "For every vertically aligned note position, return the upper-staff "
+        "pitch first and the lower-staff pitch second. Use scientific pitch "
+        "names such as C4, F#4, or Bb3. Return only pairs separated by spaces, "
+        "for example: C4-G3 D4-A3 E4-B3. Do not reuse notes from previous images. "
+        "If the notes cannot be read, return exactly UNREADABLE."
     )
 
-    try:
-        # تصغير الصورة لتقليل وقت رفعها ومعالجتها.
-        image_to_send = image.convert("RGB")
-        image_to_send.thumbnail((1400, 1400))
+    image_to_send = image.convert("RGB")
+    image_to_send.thumbnail((1400, 1400))
 
-        client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(timeout=120_000),
-        )
+    client = genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=90_000),
+    )
 
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=[prompt, image_to_send],
-        )
+    errors = []
 
-        notes_text = (response.text or "").strip()
+    # إذا تعطل النموذج الأول، يجرّب نموذجًا احتياطيًا تلقائيًا.
+    for model_name in ("gemini-3.8-flash", "gemini-3.6-flash"):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[prompt, image_to_send],
+            )
 
-        if not notes_text or "UNREADABLE" in notes_text.upper():
-            st.error("لم أتمكن من قراءة النوتة بوضوح. جرّب صورة أوضح.")
-            return None
+            notes_text = (response.text or "").strip()
 
-        pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
-        parsed_pairs = []
-
-        for token in notes_text.split():
-            token = token.strip("`.,;:")
-            pair_match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
-
-            if not pair_match:
+            if not notes_text or "UNREADABLE" in notes_text.upper():
+                errors.append(f"{model_name}: لم يستطع قراءة النوتة.")
                 continue
 
-            upper_note, lower_note = pair_match.groups()
+            pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
+            parsed_pairs = []
 
-            if (
-                pitch_pattern.fullmatch(upper_note)
-                and pitch_pattern.fullmatch(lower_note)
-            ):
-                parsed_pairs.append((upper_note, lower_note))
+            for token in notes_text.split():
+                token = token.strip("`.,;:")
+                pair_match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
 
-        if not parsed_pairs:
-            st.error("وصل رد من Gemini، لكن لم أستطع استخراج أزواج نغمات منه.")
-            return None
+                if not pair_match:
+                    continue
 
-        return parsed_pairs
+                upper_note, lower_note = pair_match.groups()
 
-    except Exception as error:
-        st.error(
-            f"تعذّرت قراءة التمرين. نوع الخطأ: {type(error).__name__}. "
-            "جرّب صورة أصغر، ثم أعد المحاولة."
-        )
-        return None
+                if (
+                    pitch_pattern.fullmatch(upper_note)
+                    and pitch_pattern.fullmatch(lower_note)
+                ):
+                    parsed_pairs.append((upper_note, lower_note))
+
+            if parsed_pairs:
+                return parsed_pairs
+
+            errors.append(f"{model_name}: لم يرجع أزواج نغمات مفهومة.")
+
+        except Exception as error:
+            errors.append(
+                f"{model_name}: {type(error).__name__}: {str(error)[:250]}"
+            )
+
+    st.error("تعذّرت قراءة الصورة بالنموذجين. التفاصيل:")
+    for error_message in errors:
+        st.write(error_message)
+
+    return None
 
 def synthesize_piano_from_notes(note_pairs):
     """توليد ملف WAV من أزواج النغمات المستخرجة."""
