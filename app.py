@@ -136,7 +136,7 @@ def parse_score_with_gemini(image):
     try:
         client = genai.Client(
             api_key=api_key,
-            http_options=types.HttpOptions(timeout=30_000),
+            http_options=types.HttpOptions(timeout=120_000),
         )
 
         response = client.models.generate_content(
