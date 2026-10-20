@@ -1,100 +1,156 @@
-import streamlit as st
-import numpy as np
-from PIL import Image
-import re
 import io
+import re
+import wave
 
-# 1. Page Configuration
-st.set_page_config(page_title="AI Counterpoint Tutor", page_icon="🎼", layout="wide")
+import numpy as np
+import streamlit as st
+from PIL import Image, UnidentifiedImageError
+from google import genai
+from google.genai import types
 
-# 2. Styling: Bach Aesthetic & Clear Cards
-st.markdown("""
-<style>
-    .stApp {
-        background: 
-            linear-gradient(to right, 
-                rgba(255, 255, 255, 0.94) 0%, 
-                rgba(255, 255, 255, 0.88) 50%, 
-                rgba(255, 255, 255, 0.94) 100%
-            ),
-            url('https://upload.wikimedia.org/wikipedia/commons/6/6a/Johann_Sebastian_Bach.jpg') left center / 35% no-repeat,
-            url('https://upload.wikimedia.org/wikipedia/commons/e/e4/Bach_-_BWV_1001_autograph.jpg') right center / 35% no-repeat;
-        background-attachment: fixed;
-        color: #111827;
-    }
-    .main .block-container {
-        background-color: rgba(255, 255, 255, 0.94);
-        padding: 2.5rem;
-        border-radius: 15px;
-        box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
-    }
-    h1, h2, h3, h4, h5, h6, p, span, label {
-        color: #0f172a !important;
-        font-family: 'Georgia', serif;
-    }
-    div[data-testid="stExpander"] {
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 10px !important;
-        margin-bottom: 10px !important;
-    }
-    div[data-testid="stExpander"] * {
-        color: #0f172a !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
-# Frequency map for standard Piano Notes
-NOTE_FREQ = {
-    'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
-    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
-    'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77
-}
+# إعداد الصفحة
+st.set_page_config(
+    page_title="AI Counterpoint Tutor",
+    page_icon="🎼",
+    layout="wide",
+)
 
-def generate_piano_note_wave(freq, duration=0.85, sr=22050):
-    t = np.linspace(0, duration, int(sr * duration), False)
-    wave = (np.sin(2 * np.pi * freq * t) + 
-            0.5 * np.sin(2 * np.pi * freq * 2 * t) + 
-            0.25 * np.sin(2 * np.pi * freq * 3 * t))
-    envelope = np.exp(-3.2 * t)
-    return wave * envelope
+# التنسيق
+st.markdown(
+    """
+    <style>
+        .stApp {
+            background:
+                linear-gradient(
+                    to right,
+                    rgba(255, 255, 255, 0.94) 0%,
+                    rgba(255, 255, 255, 0.88) 50%,
+                    rgba(255, 255, 255, 0.94) 100%
+                ),
+                url('https://upload.wikimedia.org/wikipedia/commons/6/6a/Johann_Sebastian_Bach.jpg')
+                    left center / 35% no-repeat,
+                url('https://upload.wikimedia.org/wikipedia/commons/e/e4/Bach_-_BWV_1001_autograph.jpg')
+                    right center / 35% no-repeat;
+            background-attachment: fixed;
+            color: #111827;
+        }
 
+        .main .block-container {
+            background-color: rgba(255, 255, 255, 0.94);
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3, h4, h5, h6, p, span, label {
+            color: #0f172a !important;
+            font-family: Georgia, serif;
+        }
+
+        div[data-testid="stExpander"] {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 10px !important;
+            margin-bottom: 10px !important;
+        }
+
+        div[data-testid="stExpander"] * {
+            color: #0f172a !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+def note_frequency(note_name):
+    """تحويل اسم نغمة مثل C4 أو F#4 أو Bb3 إلى تردد."""
+    match = re.fullmatch(r"([A-Ga-g])([#b]?)([0-8])", note_name.strip())
+    if not match:
+        raise ValueError(f"اسم النغمة غير صالح: {note_name}")
+
+    letter, accidental, octave_text = match.groups()
+    letter = letter.upper()
+    octave = int(octave_text)
+
+    semitones = {
+        "C": 0,
+        "D": 2,
+        "E": 4,
+        "F": 5,
+        "G": 7,
+        "A": 9,
+        "B": 11,
+    }
+
+    midi_number = (octave + 1) * 12 + semitones[letter]
+
+    if accidental == "#":
+        midi_number += 1
+    elif accidental == "b":
+        midi_number -= 1
+
+    return 440.0 * (2 ** ((midi_number - 69) / 12))
+
+
+def generate_piano_note_wave(freq, duration=0.85, sample_rate=22050):
+    """توليد موجة صوتية بسيطة لنغمة واحدة."""
+    time_values = np.linspace(
+        0,
+        duration,
+        int(sample_rate * duration),
+        endpoint=False,
+    )
+
+    signal = (
+        np.sin(2 * np.pi * freq * time_values)
+        + 0.5 * np.sin(2 * np.pi * freq * 2 * time_values)
+        + 0.25 * np.sin(2 * np.pi * freq * 3 * time_values)
+    )
+
+    envelope = np.exp(-3.2 * time_values)
+    return signal * envelope
 
 
 def parse_score_with_gemini(image):
-    """Transcribe note pairs using the Gemini API."""
-    import re
+    """استخراج أزواج النغمات من صورة النوتة باستخدام Gemini."""
+    api_key = st.secrets.get("GEMINI_API_KEY")
+
+    if not api_key:
+        st.error(
+            "لم أجد مفتاح Gemini. أضِفه في إعدادات Streamlit كما هو موضح "
+            "بعد الكود، ولا تضعه داخل هذا الملف."
+        )
+        return None
+
+    prompt = (
+        "Transcribe the visible pitches in this two-voice counterpoint score. "
+        "For each aligned pair, output upper voice first, lower voice second. "
+        "Use scientific pitch notation such as C4, F#4, or Bb3. "
+        "Output only pairs in this format: C4-G3 D4-A3 E4-B3. "
+        "Do not guess unreadable notes. If the score cannot be read reliably, "
+        "output exactly: UNREADABLE"
+    )
 
     try:
-        from google import genai
-
-        api_key = st.secrets["GEMINI_API_KEY"]
-        client = genai.Client(api_key=api_key)
-
-        prompt = (
-            "Transcribe the visible pitches in this two-voice counterpoint score. "
-            "For each aligned pair, output upper voice first, lower voice second. "
-            "Use scientific pitch notation such as C4, F#4, or Bb3. "
-            "Output only pairs in this format: C4-G3 D4-A3 E4-B3. "
-            "Do not guess unreadable notes. If the score cannot be read reliably, "
-            "output exactly: UNREADABLE"
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=30_000),
         )
 
-
-response = client.models.generate_content(
-    model="gemini-3.8-flash",
-    contents=[prompt, image],
-    config={"http_options": {"timeout": 30000}},
-)
-
-st.write(f"Gemini response received in {time.time() - start_time:.1f} seconds.")
-
-st.write(f"Gemini response received in {time.time() - start_time:.1f} seconds.")
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=[prompt, image],
+        )
 
         notes_text = (response.text or "").strip()
 
         if not notes_text or "UNREADABLE" in notes_text.upper():
-            st.error("The score could not be read reliably. Please upload a clearer image.")
+            st.error(
+                "تعذّرت قراءة النوتة بوضوح. جرّب صورة أوضح "
+                "ومستقيمة وبإضاءة جيدة."
+            )
             return None
 
         pitch_pattern = re.compile(r"^[A-Ga-g](?:#|b)?[0-8]$")
@@ -102,98 +158,135 @@ st.write(f"Gemini response received in {time.time() - start_time:.1f} seconds.")
 
         for token in notes_text.split():
             token = token.strip("`.,;:")
-            match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
+            pair_match = re.fullmatch(r"([^-\s]+)-([^-\s]+)", token)
 
-            if not match:
+            if not pair_match:
                 continue
 
-            upper_note, lower_note = match.groups()
+            upper_note, lower_note = pair_match.groups()
 
-            if pitch_pattern.fullmatch(upper_note) and pitch_pattern.fullmatch(lower_note):
-                parsed_pairs.append((upper_note.upper(), lower_note.upper()))
+            if (
+                pitch_pattern.fullmatch(upper_note)
+                and pitch_pattern.fullmatch(lower_note)
+            ):
+                parsed_pairs.append((upper_note, lower_note))
 
         if not parsed_pairs:
-            st.error("No valid note pairs were extracted from the score.")
+            st.error("لم أتمكن من استخراج أزواج نغمات صالحة من رد Gemini.")
             return None
 
         return parsed_pairs
 
-    except Exception as e:
+    except Exception as error:
+        # لا نعرض تفاصيل الاستثناء، حتى لا تظهر معلومات حساسة في الواجهة.
         st.error(
-            f"Score transcription failed ({type(e).__name__}): {e}"
+            "فشل الاتصال بـ Gemini أو معالجة الصورة. "
+            "تحقق من إعداد المفتاح والاتصال بالإنترنت، ثم حاول مجددًا. "
+            f"(نوع الخطأ: {type(error).__name__})"
         )
         return None
 
 
 def synthesize_piano_from_notes(note_pairs):
-    sr = 22050
-    audio_stream = []
-    for lower_note, upper_note in note_pairs:
-        f_lower = NOTE_FREQ.get(lower_note, 261.63)
-        f_upper = NOTE_FREQ.get(upper_note, 523.25)
-        
-        w_lower = generate_piano_note_wave(f_lower, duration=0.85, sr=sr)
-        w_upper = generate_piano_note_wave(f_upper, duration=0.85, sr=sr)
-        
-        chord = w_lower + w_upper
-        audio_stream.extend(chord)
-        
-    audio_array = np.array(audio_stream)
-    audio_array = np.int16(audio_array / np.max(np.abs(audio_array)) * 32767)
-    return audio_array, sr
+    """توليد ملف WAV من أزواج النغمات المستخرجة."""
+    sample_rate = 22050
+    audio_parts = []
 
-# === UI ===
-st.title("🎼 AI Counterpoint Pedagogical Tutor")
-st.markdown("##### *Soundslice-Style Score Vision & Acoustic Piano Synthesizer*")
+    for upper_note, lower_note in note_pairs:
+        # الزوج المستخرج ترتيبه: الصوت العلوي ثم الصوت السفلي.
+        upper_wave = generate_piano_note_wave(
+            note_frequency(upper_note),
+            sample_rate=sample_rate,
+        )
+        lower_wave = generate_piano_note_wave(
+            note_frequency(lower_note),
+            sample_rate=sample_rate,
+        )
+
+        chord = upper_wave + lower_wave
+        peak = np.max(np.abs(chord))
+
+        if peak > 0:
+            chord = chord / peak * 0.8
+
+        audio_parts.append(chord)
+
+    audio_array = np.concatenate(audio_parts)
+    pcm_audio = np.int16(np.clip(audio_array, -1.0, 1.0) * 32767)
+
+    wav_buffer = io.BytesIO()
+
+    with wave.open(wav_buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(pcm_audio.tobytes())
+
+    return wav_buffer.getvalue()
+
+
+# واجهة التطبيق
+st.title("🎼 مدرس الهارموني والكونتربوينت بالذكاء الاصطناعي")
+st.markdown("##### *قراءة النوتة وتشغيل النغمات المستخرجة*")
 st.divider()
 
-st.subheader("📁 Upload Student Score (Image / PDF Manuscript)")
-uploaded_file = st.file_uploader("Upload manuscript:", type=["png", "jpg", "jpeg", "pdf"])
+st.subheader("📁 ارفع صورة النوتة")
+uploaded_file = st.file_uploader(
+    "اختر صورة بصيغة PNG أو JPG:",
+    type=["png", "jpg", "jpeg"],
+)
 
 if uploaded_file is not None:
-    st.success(f"📄 Score uploaded: **{uploaded_file.name}**")
-    image = Image.open(uploaded_file)
+    try:
+        image = Image.open(uploaded_file).convert("RGB")
+    except (UnidentifiedImageError, OSError):
+        st.error("الملف المرفوع ليس صورة صالحة. اختر ملف PNG أو JPG.")
+        st.stop()
+
+    st.success(f"تم رفع الملف: **{uploaded_file.name}**")
 
     col_preview, col_controls = st.columns([1.2, 1], gap="large")
-    
+
     with col_preview:
-        st.write("### 🎵 Score Manuscript Preview")
+        st.write("### 🎵 معاينة النوتة")
         st.image(image, use_container_width=True)
 
     with col_controls:
-        st.write("### 🎹 Dynamic Soundslice Piano Playback")
-        st.write("Click below to analyze the manuscript image and render its exact piano audio.")
-        
-        if st.button("🎧 Hear Your Music Sheet (Acoustic Piano)", use_container_width=True):
-            with st.spinner("Gemini AI is reading notes from your uploaded image..."):
+        st.write("### 🎹 تشغيل النغمات")
+        st.write("اضغط الزر لتحليل الصورة وتشغيل النغمات التي يتعرف عليها Gemini.")
+
+        if st.button(
+            "🎧 اقرأ النوتة وشغّلها",
+            use_container_width=True,
+        ):
+            with st.spinner("Gemini يقرأ النوتة الآن..."):
                 extracted_notes = parse_score_with_gemini(image)
 
-                if extracted_notes:
-                    st.info(f"🎶 Read Notes: {extracted_notes}")
-                    piano_audio, sr = synthesize_piano_from_notes(extracted_notes)
-                    st.audio(piano_audio, sample_rate=sr)
-                else:
-                    st.warning(
-                        "Audio playback was skipped because no reliable "
-                        "note pairs were extracted."
-                    )
-
+            if extracted_notes:
+                st.info(f"النغمات المستخرجة (الصوت العلوي، ثم السفلي): {extracted_notes}")
+                audio_bytes = synthesize_piano_from_notes(extracted_notes)
+                st.audio(audio_bytes, format="audio/wav")
 
         st.divider()
-        run_analysis = st.button("🔍 Run Pedagogical AI Analysis", type="primary", use_container_width=True)
 
-    
+        run_analysis = st.button(
+            "🔍 تحليل تربوي",
+            type="primary",
+            use_container_width=True,
+        )
+
     if run_analysis:
         st.divider()
-        st.subheader("🎓 Academic Pedagogical Feedback Report")
+        st.subheader("🎓 ملاحظات تعليمية")
 
         st.warning(
-            "Automated counterpoint rule analysis is not implemented yet. "
-            "The uploaded score has not been verified for counterpoint errors."
+            "تحليل قواعد الكونتربوينت غير مطبّق بعد؛ "
+            "لم يتم التحقق من وجود أخطاء في النوتة."
         )
 
         st.info(
-            "The next step is to extract the notes and voices reliably, "
-            "then check the applicable counterpoint rules before generating feedback."
+            "الخطوة التالية هي استخراج النغمات والأصوات بدقة، "
+            "ثم التحقق من قواعد الكونتربوينت المناسبة قبل إنشاء الملاحظات."
         )
-
+else:
+    st.info("ارفع صورة للنوتة حتى تبدأ.")
