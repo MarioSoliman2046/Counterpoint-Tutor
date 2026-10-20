@@ -92,7 +92,7 @@ for name in (
     old_path = getattr(default_config.filepaths, name)
     setattr(default_config.filepaths, name, str(model_dir / Path(old_path).name))
 
-sys.argv = ["homer", "--no-title", sys.argv[1]]
+sys.argv = ["homer", sys.argv[1]]
 homr_main.main()
 '''
         env = os.environ.copy()
