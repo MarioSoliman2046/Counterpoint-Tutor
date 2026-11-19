@@ -98,6 +98,12 @@ TEXT = {
         "cadence_rule": "Begin and end with a perfect consonance (unison, fifth, or octave).",
         "meter_missing": "The time signature could not be read, so rhythmic species checks are unavailable.",
         "footer": "© 2026 Mario Soliman · Created in the UAE",
+        "study_title": "Study counterpoint",
+        "study_text": "Review the main counterpoint ideas and rules:",
+        "study_link": "Open the study guide",
+        "confirm_notes": "I checked that the recognized notes match the score.",
+        "confirm_notes_warning": "Please check the extracted notes above before running the analysis.",
+        "celebration": "All current checks passed — excellent work!",
     },
     "ar": {
         "title": "🎼 مدرس الكونتربوينت",
@@ -146,6 +152,12 @@ TEXT = {
         "cadence_rule": "ابدأ وأنهِ بفاصل تام متوافق (الأوكتاف أو الخامسة أو اليونيسون).",
         "meter_missing": "تعذّرت قراءة الميزان، لذلك لا يمكن فحص إيقاع النوع.",
         "footer": "© 2026 Mario Soliman · صُنع في الإمارات",
+        "study_title": "مراجعة الكونتربوينت",
+        "study_text": "راجع أفكار وقواعد الكونتربوينت الأساسية:",
+        "study_link": "افتح دليل المراجعة",
+        "confirm_notes": "راجعت النغمات المستخرجة وتأكدت أنها تطابق النوتة.",
+        "confirm_notes_warning": "راجع النغمات المستخرجة أعلاه قبل تشغيل التحليل.",
+        "celebration": "اجتاز التمرين جميع الفحوص الحالية — أحسنت!",
     },
 }
 
@@ -153,6 +165,15 @@ TEXT = {
 def tr(key, **values):
     language_key = "ar" if IS_ARABIC else "en"
     return TEXT[language_key][key].format(**values)
+
+
+st.sidebar.subheader(tr("study_title"))
+st.sidebar.write(tr("study_text"))
+st.sidebar.link_button(
+    tr("study_link"),
+    "https://www.masterthescore.com/article/counterpoint",
+    use_container_width=True,
+)
 
 st.markdown(
     """
@@ -604,6 +625,33 @@ def synthesize_score(events, bpm):
     return buffer.getvalue()
 
 
+def synthesize_victory_jingle():
+    """Create a short, separate piano-style victory sound without changing score playback."""
+    sample_rate = 22050
+    audio = np.zeros(int(3.0 * sample_rate), dtype=np.float32)
+    melody = [
+        (0.00, 0.36, 72), (0.34, 0.36, 76), (0.68, 0.48, 79),
+        (1.18, 0.36, 84), (1.52, 0.36, 79), (1.86, 0.42, 84),
+        (2.30, 0.62, 88),
+    ]
+    for start_seconds, duration, midi in melody:
+        start = int(start_seconds * sample_rate)
+        freq = 440.0 * (2 ** ((midi - 69) / 12))
+        note = piano_note(freq, duration, sample_rate) * 0.55
+        stop = min(len(audio), start + len(note))
+        audio[start:stop] += note[:stop - start]
+    peak = float(np.max(np.abs(audio))) if len(audio) else 0.0
+    if peak > 0:
+        audio = audio / peak * 0.82
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(np.int16(np.clip(audio, -1.0, 1.0) * 32767).tobytes())
+    return buffer.getvalue()
+
+
 st.title(tr("harmony_title") if st.session_state.tutor_mode == "Harmony" else tr("title"))
 st.markdown(tr("intro"))
 st.info(tr("quality_tip"))
@@ -661,9 +709,15 @@ if uploaded:
                 horizontal=True,
             )
             cantus_voice = "upper" if cantus_label == tr("upper_staff") else "lower"
+            notes_confirmed = st.checkbox(
+                tr("confirm_notes"),
+                key=f"confirm_notes_{digest}",
+            )
 
             if st.button(tr("analyze_button"), key="analyze_counterpoint"):
-                if not meter:
+                if not notes_confirmed:
+                    st.warning(tr("confirm_notes_warning"))
+                elif not meter:
                     st.error(tr("meter_missing"))
                 else:
                     findings, aligned_positions = analyze_species(
@@ -672,6 +726,14 @@ if uploaded:
                     st.session_state["counterpoint_report"] = (
                         digest, selected_species, cantus_voice, findings, aligned_positions
                     )
+                    if not findings:
+                        st.success(tr("celebration"))
+                        st.balloons()
+                        st.audio(
+                            synthesize_victory_jingle(),
+                            format="audio/wav",
+                            autoplay=True,
+                        )
 
             report = st.session_state.get("counterpoint_report")
             if report and report[:3] == (digest, selected_species, cantus_voice):
