@@ -72,8 +72,31 @@ TEXT = {
         "rest": "Rest",
         "analysis": "Counterpoint analysis",
         "harmony_analysis": "Harmony analysis",
-        "analysis_soon": "Counterpoint rule analysis will be added after score reading and playback are complete.",
+        "analysis_soon": "Upload a score, choose the species and cantus staff, then run the initial automatic checks.",
         "harmony_analysis_soon": "Harmony analysis will be added in a later update. Score reading and piano playback are available here.",
+        "species_label": "Counterpoint species",
+        "species_first": "First — note against note",
+        "species_second": "Second — two notes against one",
+        "species_third": "Third — four notes against one",
+        "species_fourth": "Fourth — suspensions",
+        "species_fifth": "Fifth — florid mixture",
+        "cantus_label": "Cantus firmus staff",
+        "upper_staff": "Upper staff",
+        "lower_staff": "Lower staff",
+        "analyze_button": "Analyze counterpoint",
+        "analysis_found": "Analysis found {count} item(s) to review across {positions} aligned positions.",
+        "analysis_clear": "No issues were found by the current automatic checks.",
+        "review_note": "This is a learning aid. Confirm the recognized notes before relying on the analysis.",
+        "finding_rhythm": "Expected {expected} counterpoint note(s) in this measure; found {actual}.",
+        "finding_dissonance": "{interval} is dissonant at this position.",
+        "finding_parallel": "Consecutive parallel {interval} intervals reduce independence between the voices.",
+        "suggest_rhythm": "Check the selected species rhythm and confirm that the score was read correctly.",
+        "suggest_dissonance": "Try a consonant third, fifth, sixth, or octave; in later species, check the allowed dissonance pattern and resolution.",
+        "suggest_parallel": "Change one voice so the parts move in contrary or oblique motion, or use an imperfect consonance.",
+        "bar_beat": "Measure {bar}, beat {beat}",
+        "suggestion": "Possible next step",
+        "cadence_rule": "Begin and end with a perfect consonance (unison, fifth, or octave).",
+        "meter_missing": "The time signature could not be read, so rhythmic species checks are unavailable.",
         "footer": "© 2026 Mario Soliman · Created in the UAE",
     },
     "ar": {
@@ -97,8 +120,31 @@ TEXT = {
         "rest": "سكتة",
         "analysis": "تحليل الكونتربوينت",
         "harmony_analysis": "تحليل الهارموني",
-        "analysis_soon": "ستُضاف قواعد التحليل بعد اكتمال قراءة النوتة وتشغيلها.",
+        "analysis_soon": "ارفع النوتة، واختر النوع والمدرّج الذي يحمل اللحن الثابت، ثم شغّل الفحوص الأولية.",
         "harmony_analysis_soon": "ستُضاف تفاصيل تحليل الهارموني في تحديث لاحق. قراءة النوتة وتشغيل البيانو متاحان هنا.",
+        "species_label": "نوع الكونتربوينت",
+        "species_first": "الأول — نغمة مقابل نغمة",
+        "species_second": "الثاني — نغمتان مقابل نغمة",
+        "species_third": "الثالث — أربع نغمات مقابل نغمة",
+        "species_fourth": "الرابع — التعليق والحل",
+        "species_fifth": "الخامس — مزيج حر من الأنواع",
+        "cantus_label": "المدرّج الذي يحمل اللحن الثابت",
+        "upper_staff": "المدرّج العلوي",
+        "lower_staff": "المدرّج السفلي",
+        "analyze_button": "حلّل الكونتربوينت",
+        "analysis_found": "وجد التحليل {count} ملاحظة للمراجعة في {positions} موضعًا متوافقًا.",
+        "analysis_clear": "لم تكشف الفحوص الآلية الحالية عن أخطاء.",
+        "review_note": "هذا التحليل مساعد تعليمي؛ راجع النغمات التي قرأها التطبيق قبل الاعتماد على النتيجة.",
+        "finding_rhythm": "المتوقع {expected} نغمة للكونتربوينت في هذا المازورة، والموجود {actual}.",
+        "finding_dissonance": "الفاصل {interval} غير متوافق في هذا الموضع.",
+        "finding_parallel": "تكرار فاصل {interval} بالحركة المتوازية يقلل استقلال الصوتين.",
+        "suggest_rhythm": "راجع إيقاع النوع المختار وتأكد من صحة قراءة الصورة.",
+        "suggest_dissonance": "جرّب فاصلًا متوافقًا مثل الثالثة أو الخامسة أو السادسة أو الأوكتاف؛ وفي الأنواع المتقدمة راجع طريقة معالجة النغمة غير المتوافقة.",
+        "suggest_parallel": "غيّر حركة أحد الصوتين لتصبح عكسية أو ثابتة، أو استخدم فاصلًا متوافقًا غير تام.",
+        "bar_beat": "المازورة {bar}، النبضة {beat}",
+        "suggestion": "اقتراح للمراجعة",
+        "cadence_rule": "ابدأ وأنهِ بفاصل تام متوافق (الأوكتاف أو الخامسة أو اليونيسون).",
+        "meter_missing": "تعذّرت قراءة الميزان، لذلك لا يمكن فحص إيقاع النوع.",
         "footer": "© 2026 Mario Soliman · صُنع في الإمارات",
     },
 }
@@ -360,9 +406,17 @@ def parse_musicxml(xml_text):
     grouped = {}
     for event in events:
         key = round(event["beat"], 4)
-        grouped.setdefault(key, {"beat": event["beat"], "upper": [], "lower": [], "durations": []})
+        grouped.setdefault(key, {
+            "beat": event["beat"],
+            "upper": [],
+            "lower": [],
+            "upper_durations": [],
+            "lower_durations": [],
+            "durations": [],
+        })
         voice = "upper" if event["staff"] == 1 else "lower"
         grouped[key][voice].append(event["midi"])
+        grouped[key][f"{voice}_durations"].append(event["duration_beats"])
         grouped[key]["durations"].append(event["duration_beats"])
 
     output = []
@@ -371,9 +425,136 @@ def parse_musicxml(xml_text):
             "beat": event["beat"],
             "upper": event["upper"],
             "lower": event["lower"],
+            "upper_durations": event["upper_durations"],
+            "lower_durations": event["lower_durations"],
             "duration_beats": max(event["durations"] or [1.0]),
         })
     return output, tempo, first_meter, score_beats
+
+
+def interval_label(midi_a, midi_b):
+    semitones = abs(midi_a - midi_b)
+    simple = semitones % 12
+    labels_en = {0: "unison/octave", 1: "minor second", 2: "major second",
+                 3: "minor third", 4: "major third", 5: "perfect fourth",
+                 6: "tritone", 7: "perfect fifth", 8: "minor sixth",
+                 9: "major sixth", 10: "minor seventh", 11: "major seventh"}
+    labels_ar = {0: "يونيسون/أوكتاف", 1: "ثانية صغيرة", 2: "ثانية كبيرة",
+                 3: "ثالثة صغيرة", 4: "ثالثة كبيرة", 5: "رابعة تامة",
+                 6: "تريتون", 7: "خامسة تامة", 8: "سادسة صغيرة",
+                 9: "سادسة كبيرة", 10: "سابعة صغيرة", 11: "سابعة كبيرة"}
+    labels = labels_ar if IS_ARABIC else labels_en
+    return labels[simple], simple
+
+
+def analyze_species(events, meter, species, cantus_voice):
+    """Apply an initial two-voice, tonal species-counterpoint rule set."""
+    if not events or not meter:
+        return [], 0
+
+    beats_per_measure = meter[0] * 4.0 / meter[1]
+    counter_voice = "lower" if cantus_voice == "upper" else "upper"
+    lines = {"upper": [], "lower": []}
+    for event in events:
+        for voice in ("upper", "lower"):
+            notes = event[voice]
+            durations = event.get(f"{voice}_durations", [])
+            for index, midi in enumerate(notes):
+                duration = durations[index] if index < len(durations) else event["duration_beats"]
+                lines[voice].append((event["beat"], midi, max(duration, 0.25)))
+    for voice in lines:
+        lines[voice].sort(key=lambda item: item[0])
+
+    def active_note(voice, beat):
+        candidates = [item for item in lines[voice] if item[0] <= beat < item[0] + item[2] - 1e-5]
+        return candidates[-1][1] if candidates else None
+
+    findings = []
+    expected_per_measure = {"First": 1, "Second": 2, "Third": 4, "Fourth": 2}
+    expected = expected_per_measure.get(species)
+    if expected:
+        counts = {}
+        for beat, _, _ in lines[counter_voice]:
+            bar = int(beat // beats_per_measure) + 1
+            counts[bar] = counts.get(bar, 0) + 1
+        for bar in sorted(counts):
+            if counts[bar] != expected:
+                findings.append({
+                    "kind": "rhythm", "bar": bar, "beat": 1,
+                    "expected": expected, "actual": counts[bar],
+                    "severity": "check",
+                })
+
+    attacks = []
+    for beat, midi, _ in lines[counter_voice]:
+        cantus_midi = active_note(cantus_voice, beat)
+        if cantus_midi is not None:
+            label, simple = interval_label(cantus_midi, midi)
+            attacks.append((beat, midi, cantus_midi, label, simple))
+
+    if not attacks:
+        return findings, 0
+
+    consonant_classes = {0, 3, 4, 7, 8, 9}
+    perfect_classes = {0, 7}
+    for edge, attack in (("start", attacks[0]), ("end", attacks[-1])):
+        if attack[4] not in perfect_classes:
+            findings.append({
+                "kind": "cadence", "bar": 1 if edge == "start" else int(attack[0] // beats_per_measure) + 1,
+                "beat": 1 if edge == "start" else (attack[0] % beats_per_measure) + 1,
+                "severity": "error",
+            })
+    for index, (beat, cp_midi, cf_midi, label, simple) in enumerate(attacks):
+        if simple in consonant_classes:
+            continue
+        bar = int(beat // beats_per_measure) + 1
+        beat_in_bar = (beat % beats_per_measure) + 1
+        allowed = False
+        note_index = next((i for i, item in enumerate(lines[counter_voice]) if abs(item[0] - beat) < 1e-5 and item[1] == cp_midi), -1)
+        previous = lines[counter_voice][note_index - 1] if note_index > 0 else None
+        following = lines[counter_voice][note_index + 1] if note_index >= 0 and note_index + 1 < len(lines[counter_voice]) else None
+        if species in ("Second", "Third", "Fifth") and previous and following:
+            before = cp_midi - previous[1]
+            after = following[1] - cp_midi
+            step = abs(before) in (1, 2) and abs(after) in (1, 2)
+            passing = step and before * after > 0
+            neighbor = step and previous[1] == following[1]
+            if species == "Second":
+                weak = abs((beat % beats_per_measure) - beats_per_measure / 2) < 0.08
+                allowed = weak and passing
+            elif species == "Third":
+                strong = min(beat % beats_per_measure, abs((beat % beats_per_measure) - beats_per_measure / 2)) < 0.08
+                allowed = not strong and (passing or neighbor)
+            else:
+                allowed = passing or neighbor
+        if not allowed and species in ("Fourth", "Fifth") and previous and following:
+            # Candidate suspension: same pitch is prepared, then resolves down by step.
+            prepared = previous[1] == cp_midi and beat % beats_per_measure < 0.08
+            resolves = cp_midi - following[1] in (1, 2)
+            allowed = prepared and resolves
+
+        if not allowed:
+            findings.append({
+                "kind": "dissonance", "bar": bar, "beat": beat_in_bar,
+                "interval": label,
+                "severity": "error",
+            })
+
+    for index in range(1, len(attacks)):
+        prev = attacks[index - 1]
+        current = attacks[index]
+        prev_cp, prev_cf = prev[1], prev[2]
+        cp_motion = current[1] - prev_cp
+        cf_motion = current[2] - prev_cf
+        if cp_motion * cf_motion > 0 and prev[4] in perfect_classes and current[4] == prev[4]:
+            findings.append({
+                "kind": "parallel", "bar": int(current[0] // beats_per_measure) + 1,
+                "beat": (current[0] % beats_per_measure) + 1,
+                "interval": current[3],
+                "severity": "error",
+            })
+
+    return findings, len(attacks)
 
 
 def piano_note(freq, duration, sample_rate):
@@ -468,6 +649,62 @@ if uploaded:
             lower = " + ".join(midi_name(n) for n in event["lower"]) or tr("rest")
             st.write(f"{tr('upper')}: **{upper}**　|　{tr('lower')}: **{lower}**")
         st.audio(synthesize_score(events, bpm), format="audio/wav")
+
+        if st.session_state.tutor_mode == "Counterpoint":
+            species_codes = ["First", "Second", "Third", "Fourth", "Fifth"]
+            species_labels = [tr(f"species_{code.lower()}") for code in species_codes]
+            selected_species_label = st.selectbox(tr("species_label"), species_labels)
+            selected_species = species_codes[species_labels.index(selected_species_label)]
+            cantus_label = st.radio(
+                tr("cantus_label"),
+                [tr("upper_staff"), tr("lower_staff")],
+                horizontal=True,
+            )
+            cantus_voice = "upper" if cantus_label == tr("upper_staff") else "lower"
+
+            if st.button(tr("analyze_button"), key="analyze_counterpoint"):
+                if not meter:
+                    st.error(tr("meter_missing"))
+                else:
+                    findings, aligned_positions = analyze_species(
+                        events, meter, selected_species, cantus_voice
+                    )
+                    st.session_state["counterpoint_report"] = (
+                        digest, selected_species, cantus_voice, findings, aligned_positions
+                    )
+
+            report = st.session_state.get("counterpoint_report")
+            if report and report[:3] == (digest, selected_species, cantus_voice):
+                _, _, _, findings, aligned_positions = report
+                st.info(tr("review_note"))
+                if findings:
+                    st.warning(tr(
+                        "analysis_found",
+                        count=len(findings),
+                        positions=aligned_positions,
+                    ))
+                    for finding in findings:
+                        if finding["kind"] == "rhythm":
+                            message = tr(
+                                "finding_rhythm",
+                                expected=finding["expected"],
+                                actual=finding["actual"],
+                            )
+                            suggestion = tr("suggest_rhythm")
+                        elif finding["kind"] == "cadence":
+                            message = tr("cadence_rule")
+                            suggestion = tr("suggest_dissonance")
+                        elif finding["kind"] == "parallel":
+                            message = tr("finding_parallel", interval=finding["interval"])
+                            suggestion = tr("suggest_parallel")
+                        else:
+                            message = tr("finding_dissonance", interval=finding["interval"])
+                            suggestion = tr("suggest_dissonance")
+                        with st.container(border=True):
+                            st.error(f"{tr('bar_beat', bar=finding['bar'], beat=finding['beat'])}: {message}")
+                            st.caption(f"{tr('suggestion')}: {suggestion}")
+                else:
+                    st.success(tr("analysis_clear"))
 
 st.divider()
 st.subheader(
