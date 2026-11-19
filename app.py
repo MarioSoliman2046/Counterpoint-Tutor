@@ -113,20 +113,40 @@ st.markdown(
     <style>
       .stApp {
         background:
-          linear-gradient(rgba(248,250,252,.91), rgba(248,250,252,.91)),
+          linear-gradient(90deg, rgba(248,250,252,.88), rgba(248,250,252,.45)),
           url('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/500px-Johann_Sebastian_Bach.jpg');
-        background-size: cover; background-position: center 30%; background-attachment: fixed;
+        background-size: cover, auto 100vh;
+        background-position: center, right center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
         color: #111827;
       }
       [data-testid="stAppViewContainer"] { color: #111827; }
-      .stButton > button {
-        color: #102a43 !important; background: #e8f0fb !important;
+      div[data-testid="stHeading"] { text-align: center !important; width: 100%; }
+      div[data-testid="stHeading"] h1 { text-align: center !important; width: 100%; }
+      .stButton > button,
+      button[data-testid="stBaseButton-secondary"],
+      [data-testid="stFileUploader"] button,
+      [data-testid="stFileUploaderDropzone"] button {
+        color: #102a43 !important; background-color: #e8f0fb !important;
         border: 1px solid #9bb6d3 !important; border-radius: 10px !important;
         font-weight: 600 !important;
       }
-      .stButton > button:hover { color: #ffffff !important; background: #285f8f !important; }
+      [data-testid="stFileUploaderDropzone"] {
+        background-color: rgba(247,251,255,.96) !important;
+        border-color: #9bb6d3 !important;
+      }
+      [data-testid="stFileUploaderDropzone"] div,
+      [data-testid="stFileUploaderDropzone"] span,
+      [data-testid="stFileUploaderDropzone"] small {
+        color: #243b53 !important;
+      }
+      .stButton > button:hover,
+      [data-testid="stFileUploader"] button:hover {
+        color: #ffffff !important; background-color: #285f8f !important;
+      }
       .main .block-container {
-        background: rgba(255,255,255,.96); padding: 2rem;
+        background: rgba(255,255,255,.82); padding: 2rem;
         border-radius: 14px; max-width: 1400px; padding-bottom: 5rem;
       }
       body, [data-testid="stAppViewContainer"] { direction: __DIRECTION__; }
