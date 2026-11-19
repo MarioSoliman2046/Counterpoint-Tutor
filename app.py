@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import io
 import os
@@ -9,7 +10,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
+import pymupdf
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, UnidentifiedImageError
 
 
@@ -54,13 +57,15 @@ TEXT = {
     "en": {
         "title": "🎼 Counterpoint Tutor",
         "harmony_title": "🎼 Harmony Tutor",
-        "intro": "Upload a printed score image (PNG or JPG) to read and play both staves together.",
+        "intro": "Upload one or more printed score images or PDFs. Each image or PDF page can be read and played on its own.",
         "quality_tip": "For best results, use a clear, straight image showing both complete staves, including the clefs and key signature.",
-        "upload": "Choose a score image",
+        "upload": "Choose one or more score images or PDFs",
         "invalid_image": "This file is not a valid image. Choose a PNG or JPG file.",
+        "invalid_pdf": "This PDF could not be opened. Please choose a valid PDF.",
+        "select_score": "Choose an exercise or PDF page",
         "tempo": "Playback tempo (beats per minute)",
         "read_play": "🎹 Read the score and play both staves",
-        "reading": "Reading the score. The first analysis may take longer...",
+        "reading": "Reading the selected score. The first analysis may take longer...",
         "timeout": "Reading timed out. Try a smaller, clearer image.",
         "read_failed": "The score could not be read. Check the image and try again.",
         "technical_details": "Technical details",
@@ -108,10 +113,12 @@ TEXT = {
     "ar": {
         "title": "🎼 مدرس الكونتربوينت",
         "harmony_title": "🎼 مدرس الهارموني",
-        "intro": "ارفع صورة نوتة مطبوعة (PNG أو JPG) لقراءة المدرّجين وتشغيلهما معًا.",
+        "intro": "ارفع صورة أو أكثر للنوتة أو ملفات PDF. تُقرأ كل صورة أو صفحة PDF وتُشغّل بشكل مستقل.",
         "quality_tip": "لأفضل نتيجة، استخدم صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، مع المفتاح الموسيقي وعلامة التحويل.",
-        "upload": "اختر صورة النوتة",
+        "upload": "اختر صورة أو أكثر للنوتة أو ملفات PDF",
         "invalid_image": "الملف ليس صورة صالحة. اختر ملف PNG أو JPG.",
+        "invalid_pdf": "تعذّر فتح ملف PDF. اختر ملف PDF صالحًا.",
+        "select_score": "اختر تمرينًا أو صفحة من PDF",
         "tempo": "سرعة التشغيل (نبضة في الدقيقة)",
         "read_play": "🎹 اقرأ النوتة وشغّل المدرّجين",
         "reading": "تتم قراءة النوتة. قد يستغرق التحليل الأول وقتًا أطول...",
@@ -165,6 +172,15 @@ TEXT = {
 def tr(key, **values):
     language_key = "ar" if IS_ARABIC else "en"
     return TEXT[language_key][key].format(**values)
+
+
+@st.cache_data(show_spinner=False)
+def render_pdf_pages(pdf_bytes):
+    with pymupdf.open(stream=pdf_bytes, filetype="pdf") as document:
+        return [
+            page.get_pixmap(matrix=pymupdf.Matrix(2, 2), alpha=False).tobytes("png")
+            for page in document
+        ]
 
 
 st.sidebar.subheader(tr("study_title"))
@@ -652,42 +668,76 @@ def synthesize_victory_jingle():
     return buffer.getvalue()
 
 
+def play_hidden_audio(audio_bytes):
+    """Play a short success sound without showing an unnecessary audio control bar."""
+    encoded_audio = base64.b64encode(audio_bytes).decode("ascii")
+    components.html(
+        f'<audio autoplay><source src="data:audio/wav;base64,{encoded_audio}" type="audio/wav"></audio>',
+        height=1,
+        scrolling=False,
+    )
+
+
 st.title(tr("harmony_title") if st.session_state.tutor_mode == "Harmony" else tr("title"))
 st.markdown(tr("intro"))
 st.info(tr("quality_tip"))
 
-uploaded = st.file_uploader(tr("upload"), type=["png", "jpg", "jpeg"])
+uploaded_files = st.file_uploader(
+    tr("upload"),
+    type=["png", "jpg", "jpeg", "pdf"],
+    accept_multiple_files=True,
+)
 
-if uploaded:
-    file_bytes = uploaded.getvalue()
-    try:
-        image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
-    except (UnidentifiedImageError, OSError):
-        st.error(tr("invalid_image"))
-        st.stop()
+score_pages = []
+for uploaded_file in uploaded_files or []:
+    file_bytes = uploaded_file.getvalue()
+    suffix = Path(uploaded_file.name).suffix.lower()
+    if suffix == ".pdf":
+        try:
+            pages = render_pdf_pages(file_bytes)
+            score_pages.extend(
+                (f"{uploaded_file.name} — Page {page_number}", page_bytes, ".png")
+                for page_number, page_bytes in enumerate(pages, start=1)
+            )
+        except Exception:
+            st.error(f"{uploaded_file.name}: {tr('invalid_pdf')}")
+    else:
+        try:
+            Image.open(io.BytesIO(file_bytes)).verify()
+            score_pages.append((uploaded_file.name, file_bytes, suffix))
+        except (UnidentifiedImageError, OSError):
+            st.error(f"{uploaded_file.name}: {tr('invalid_image')}")
 
-    st.image(image, caption=uploaded.name, use_container_width=True)
-    bpm = st.slider(tr("tempo"), 40, 180, 100)
+if score_pages:
+    selected_index = st.selectbox(
+        tr("select_score"),
+        options=list(range(len(score_pages))),
+        format_func=lambda index: score_pages[index][0],
+    )
+    score_name, file_bytes, image_suffix = score_pages[selected_index]
+    image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+    st.image(image, caption=score_name, use_container_width=True)
+    digest = hashlib.sha256(score_name.encode("utf-8") + file_bytes).hexdigest()
+    bpm = st.slider(tr("tempo"), 40, 180, 100, key=f"tempo_{digest}")
 
-    digest = hashlib.sha256(file_bytes).hexdigest()
-    if st.button(tr("read_play"), type="primary"):
+    if st.button(tr("read_play"), type="primary", key=f"read_play_{digest}"):
         with st.spinner(tr("reading")):
             try:
-                xml_text = homr_convert(file_bytes, Path(uploaded.name).suffix.lower())
+                xml_text = homr_convert(file_bytes, image_suffix)
                 events, detected_tempo, meter, total_beats = parse_musicxml(xml_text)
-                st.session_state["score_result"] = (digest, events, detected_tempo, meter)
+                st.session_state.setdefault("score_results", {})[digest] = (
+                    events, detected_tempo, meter
+                )
             except subprocess.TimeoutExpired:
                 st.error(tr("timeout"))
-                st.session_state.pop("score_result", None)
             except Exception as error:
                 st.error(tr("read_failed"))
                 with st.expander(tr("technical_details")):
                     st.code(str(error)[-1200:])
-                st.session_state.pop("score_result", None)
 
-    saved = st.session_state.get("score_result")
-    if saved and saved[0] == digest:
-        _, events, detected_tempo, meter = saved
+    saved = st.session_state.get("score_results", {}).get(digest)
+    if saved:
+        events, detected_tempo, meter = saved
         st.success(tr("success", count=len(events)))
         if meter:
             st.caption(tr("meter", beats=meter[0], unit=meter[1]))
@@ -701,20 +751,22 @@ if uploaded:
         if st.session_state.tutor_mode == "Counterpoint":
             species_codes = ["First", "Second", "Third", "Fourth", "Fifth"]
             species_labels = [tr(f"species_{code.lower()}") for code in species_codes]
-            selected_species_label = st.selectbox(tr("species_label"), species_labels)
+            selected_species_label = st.selectbox(
+                tr("species_label"), species_labels, key=f"species_{digest}"
+            )
             selected_species = species_codes[species_labels.index(selected_species_label)]
             cantus_label = st.radio(
                 tr("cantus_label"),
                 [tr("upper_staff"), tr("lower_staff")],
                 horizontal=True,
+                key=f"cantus_{digest}",
             )
             cantus_voice = "upper" if cantus_label == tr("upper_staff") else "lower"
             notes_confirmed = st.checkbox(
-                tr("confirm_notes"),
-                key=f"confirm_notes_{digest}",
+                tr("confirm_notes"), key=f"confirm_notes_{digest}"
             )
 
-            if st.button(tr("analyze_button"), key="analyze_counterpoint"):
+            if st.button(tr("analyze_button"), key=f"analyze_counterpoint_{digest}"):
                 if not notes_confirmed:
                     st.warning(tr("confirm_notes_warning"))
                 elif not meter:
@@ -723,21 +775,17 @@ if uploaded:
                     findings, aligned_positions = analyze_species(
                         events, meter, selected_species, cantus_voice
                     )
-                    st.session_state["counterpoint_report"] = (
-                        digest, selected_species, cantus_voice, findings, aligned_positions
+                    st.session_state.setdefault("counterpoint_reports", {})[digest] = (
+                        selected_species, cantus_voice, findings, aligned_positions
                     )
                     if not findings:
                         st.success(tr("celebration"))
                         st.balloons()
-                        st.audio(
-                            synthesize_victory_jingle(),
-                            format="audio/wav",
-                            autoplay=True,
-                        )
+                        play_hidden_audio(synthesize_victory_jingle())
 
-            report = st.session_state.get("counterpoint_report")
-            if report and report[:3] == (digest, selected_species, cantus_voice):
-                _, _, _, findings, aligned_positions = report
+            report = st.session_state.get("counterpoint_reports", {}).get(digest)
+            if report and report[:2] == (selected_species, cantus_voice):
+                _, _, findings, aligned_positions = report
                 st.info(tr("review_note"))
                 if findings:
                     st.warning(tr(
