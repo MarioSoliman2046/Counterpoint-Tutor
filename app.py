@@ -21,11 +21,24 @@ st.set_page_config(
 
 if "ui_language" not in st.session_state:
     st.session_state.ui_language = "English"
+if "tutor_mode" not in st.session_state:
+    st.session_state.tutor_mode = "Counterpoint"
 
 if st.session_state.ui_language == "English":
-    _, language_column = st.columns([8, 1])
+    _, mode_column, language_column = st.columns([7, 2, 1])
 else:
-    language_column, _ = st.columns([1, 8])
+    language_column, mode_column, _ = st.columns([1, 2, 7])
+
+with mode_column:
+    next_mode = "Harmony" if st.session_state.tutor_mode == "Counterpoint" else "Counterpoint"
+    mode_label = (
+        ("Harmony mode" if next_mode == "Harmony" else "Counterpoint mode")
+        if st.session_state.ui_language == "English"
+        else ("وضع الهارموني" if next_mode == "Harmony" else "وضع الكونتربوينت")
+    )
+    if st.button(mode_label, key="tutor_mode_toggle"):
+        st.session_state.tutor_mode = next_mode
+        st.rerun()
 
 with language_column:
     next_language = "العربية" if st.session_state.ui_language == "English" else "English"
@@ -40,6 +53,7 @@ IS_ARABIC = LANGUAGE == "العربية"
 TEXT = {
     "en": {
         "title": "🎼 Counterpoint Tutor",
+        "harmony_title": "🎼 Harmony Tutor",
         "intro": "Upload a printed score image (PNG or JPG) to read and play both staves together.",
         "quality_tip": "For best results, use a clear, straight image showing both complete staves, including the clefs and key signature.",
         "upload": "Choose a score image",
@@ -57,10 +71,14 @@ TEXT = {
         "lower": "Lower",
         "rest": "Rest",
         "analysis": "Counterpoint analysis",
+        "harmony_analysis": "Harmony analysis",
         "analysis_soon": "Counterpoint rule analysis will be added after score reading and playback are complete.",
+        "harmony_analysis_soon": "Harmony analysis will be added in a later update. Score reading and piano playback are available here.",
+        "footer": "© 2026 Mario Soliman · Created in the UAE",
     },
     "ar": {
         "title": "🎼 مدرس الكونتربوينت",
+        "harmony_title": "🎼 مدرس الهارموني",
         "intro": "ارفع صورة نوتة مطبوعة (PNG أو JPG) لقراءة المدرّجين وتشغيلهما معًا.",
         "quality_tip": "لأفضل نتيجة، استخدم صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، مع المفتاح الموسيقي وعلامة التحويل.",
         "upload": "اختر صورة النوتة",
@@ -78,7 +96,10 @@ TEXT = {
         "lower": "السفلي",
         "rest": "سكتة",
         "analysis": "تحليل الكونتربوينت",
+        "harmony_analysis": "تحليل الهارموني",
         "analysis_soon": "ستُضاف قواعد التحليل بعد اكتمال قراءة النوتة وتشغيلها.",
+        "harmony_analysis_soon": "ستُضاف تفاصيل تحليل الهارموني في تحديث لاحق. قراءة النوتة وتشغيل البيانو متاحان هنا.",
+        "footer": "© 2026 Mario Soliman · صُنع في الإمارات",
     },
 }
 
@@ -90,12 +111,32 @@ def tr(key, **values):
 st.markdown(
     """
     <style>
-      .stApp { background: #f4f6fa; color: #111827; }
+      .stApp {
+        background:
+          linear-gradient(rgba(248,250,252,.91), rgba(248,250,252,.91)),
+          url('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/500px-Johann_Sebastian_Bach.jpg');
+        background-size: cover; background-position: center 30%; background-attachment: fixed;
+        color: #111827;
+      }
+      [data-testid="stAppViewContainer"] { color: #111827; }
+      .stButton > button {
+        color: #102a43 !important; background: #e8f0fb !important;
+        border: 1px solid #9bb6d3 !important; border-radius: 10px !important;
+        font-weight: 600 !important;
+      }
+      .stButton > button:hover { color: #ffffff !important; background: #285f8f !important; }
       .main .block-container {
         background: rgba(255,255,255,.96); padding: 2rem;
-        border-radius: 14px; max-width: 1400px;
+        border-radius: 14px; max-width: 1400px; padding-bottom: 5rem;
       }
       body, [data-testid="stAppViewContainer"] { direction: __DIRECTION__; }
+      .app-footer {
+        position: fixed; bottom: 0; left: 0; width: 100%; z-index: 999;
+        padding: .7rem 1rem; text-align: center;
+        color: #475569; background: rgba(255,255,255,.97);
+        border-top: 1px solid #dbe3ee; font-size: .9rem;
+        box-shadow: 0 -2px 12px rgba(15,23,42,.06);
+      }
     </style>
     """.replace("__DIRECTION__", "rtl" if IS_ARABIC else "ltr"),
     unsafe_allow_html=True,
@@ -362,7 +403,7 @@ def synthesize_score(events, bpm):
     return buffer.getvalue()
 
 
-st.title(tr("title"))
+st.title(tr("harmony_title") if st.session_state.tutor_mode == "Harmony" else tr("title"))
 st.markdown(tr("intro"))
 st.info(tr("quality_tip"))
 
@@ -409,5 +450,14 @@ if uploaded:
         st.audio(synthesize_score(events, bpm), format="audio/wav")
 
 st.divider()
-st.subheader(tr("analysis"))
-st.info(tr("analysis_soon"))
+st.subheader(
+    tr("harmony_analysis")
+    if st.session_state.tutor_mode == "Harmony"
+    else tr("analysis")
+)
+st.info(
+    tr("harmony_analysis_soon")
+    if st.session_state.tutor_mode == "Harmony"
+    else tr("analysis_soon")
+)
+st.markdown(f'<div class="app-footer">{tr("footer")}</div>', unsafe_allow_html=True)
