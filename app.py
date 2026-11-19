@@ -14,10 +14,78 @@ from PIL import Image, UnidentifiedImageError
 
 
 st.set_page_config(
-    page_title="مدرس الكونتربوينت",
+    page_title="Counterpoint Tutor",
     page_icon="🎼",
     layout="wide",
 )
+
+if "ui_language" not in st.session_state:
+    st.session_state.ui_language = "English"
+
+if st.session_state.ui_language == "English":
+    _, language_column = st.columns([8, 1])
+else:
+    language_column, _ = st.columns([1, 8])
+
+with language_column:
+    next_language = "العربية" if st.session_state.ui_language == "English" else "English"
+    language_help = "تغيير لغة العرض" if st.session_state.ui_language == "العربية" else "Switch the display language"
+    if st.button(next_language, key="language_toggle", help=language_help):
+        st.session_state.ui_language = next_language
+        st.rerun()
+
+LANGUAGE = st.session_state.ui_language
+IS_ARABIC = LANGUAGE == "العربية"
+
+TEXT = {
+    "en": {
+        "title": "🎼 Counterpoint Tutor",
+        "intro": "Upload a printed score image (PNG or JPG) to read and play both staves together.",
+        "quality_tip": "For best results, use a clear, straight image showing both complete staves, including the clefs and key signature.",
+        "upload": "Choose a score image",
+        "invalid_image": "This file is not a valid image. Choose a PNG or JPG file.",
+        "tempo": "Playback tempo (beats per minute)",
+        "read_play": "🎹 Read the score and play both staves",
+        "reading": "Reading the score. The first analysis may take longer...",
+        "timeout": "Reading timed out. Try a smaller, clearer image.",
+        "read_failed": "The score could not be read. Check the image and try again.",
+        "technical_details": "Technical details",
+        "success": "Read {count} musical positions.",
+        "meter": "Detected meter: {beats}/{unit}",
+        "extracted": "Extracted notes: upper staff, then lower staff",
+        "upper": "Upper",
+        "lower": "Lower",
+        "rest": "Rest",
+        "analysis": "Counterpoint analysis",
+        "analysis_soon": "Counterpoint rule analysis will be added after score reading and playback are complete.",
+    },
+    "ar": {
+        "title": "🎼 مدرس الكونتربوينت",
+        "intro": "ارفع صورة نوتة مطبوعة (PNG أو JPG) لقراءة المدرّجين وتشغيلهما معًا.",
+        "quality_tip": "لأفضل نتيجة، استخدم صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، مع المفتاح الموسيقي وعلامة التحويل.",
+        "upload": "اختر صورة النوتة",
+        "invalid_image": "الملف ليس صورة صالحة. اختر ملف PNG أو JPG.",
+        "tempo": "سرعة التشغيل (نبضة في الدقيقة)",
+        "read_play": "🎹 اقرأ النوتة وشغّل المدرّجين",
+        "reading": "تتم قراءة النوتة. قد يستغرق التحليل الأول وقتًا أطول...",
+        "timeout": "انتهى وقت القراءة. جرّب صورة أصغر وأوضح.",
+        "read_failed": "تعذّرت قراءة النوتة. تأكد من الصورة وحاول مرة أخرى.",
+        "technical_details": "التفاصيل التقنية",
+        "success": "تم استخراج {count} موضعًا موسيقيًا.",
+        "meter": "الميزان المكتشف: {beats}/{unit}",
+        "extracted": "النغمات المستخرجة: المدرّج العلوي ثم السفلي",
+        "upper": "العلوي",
+        "lower": "السفلي",
+        "rest": "سكتة",
+        "analysis": "تحليل الكونتربوينت",
+        "analysis_soon": "ستُضاف قواعد التحليل بعد اكتمال قراءة النوتة وتشغيلها.",
+    },
+}
+
+
+def tr(key, **values):
+    language_key = "ar" if IS_ARABIC else "en"
+    return TEXT[language_key][key].format(**values)
 
 st.markdown(
     """
@@ -27,8 +95,9 @@ st.markdown(
         background: rgba(255,255,255,.96); padding: 2rem;
         border-radius: 14px; max-width: 1400px;
       }
+      body, [data-testid="stAppViewContainer"] { direction: __DIRECTION__; }
     </style>
-    """,
+    """.replace("__DIRECTION__", "rtl" if IS_ARABIC else "ltr"),
     unsafe_allow_html=True,
 )
 
@@ -138,8 +207,8 @@ homr_main.main()
         if result.returncode != 0 or not xml_path.exists():
             details = (result.stderr or result.stdout or "").strip()
             raise RuntimeError(
-                "لم يستطع محرّك قراءة هذه الصورة. "
-                + (details[-1000:] if details else "لم يُنتج ملف MusicXML.")
+                "HOMR_FAILED: "
+                + (details[-1000:] if details else "No MusicXML file was produced.")
             )
         return xml_path.read_text(encoding="utf-8")
 
@@ -155,7 +224,7 @@ def parse_musicxml(xml_text):
 
     parts = root.findall(".//part")
     if not parts:
-        raise ValueError("ملف النوتة الناتج لا يحتوي على مدرّج قابل للقراءة.")
+        raise ValueError("EMPTY_MUSICXML")
 
     for part in parts:
         part_offset = 0.0
@@ -224,7 +293,7 @@ def parse_musicxml(xml_text):
             score_beats = max(score_beats, part_offset)
 
     if not events:
-        raise ValueError("لم أجد نغمات في النتيجة. جرّب صورة أوضح ومقصوصة حول المدرّجين.")
+        raise ValueError("NO_NOTES")
 
     # Group notes occurring at the same musical time; staff 1 is upper, staff 2 lower.
     grouped = {}
@@ -293,53 +362,52 @@ def synthesize_score(events, bpm):
     return buffer.getvalue()
 
 
-st.title("🎼 مدرس الكونتربوينت")
-st.markdown("ارفع صورة نوتة مطبوعة بصيغة PNG أو JPG لقراءة الصوتين وتشغيلهما معًا.")
-st.info(
-    "لأفضل نتيجة: ارفع صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، "
-    "بما في ذلك المفتاح الموسيقي وعلامات التحويل."
-)
+st.title(tr("title"))
+st.markdown(tr("intro"))
+st.info(tr("quality_tip"))
 
-uploaded = st.file_uploader("اختر صورة النوتة", type=["png", "jpg", "jpeg"])
+uploaded = st.file_uploader(tr("upload"), type=["png", "jpg", "jpeg"])
 
 if uploaded:
     file_bytes = uploaded.getvalue()
     try:
         image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
     except (UnidentifiedImageError, OSError):
-        st.error("الصورة غير صالحة. اختر ملف PNG أو JPG.")
+        st.error(tr("invalid_image"))
         st.stop()
 
     st.image(image, caption=uploaded.name, use_container_width=True)
-    bpm = st.slider("سرعة التشغيل (نبضة في الدقيقة)", 40, 180, 100)
+    bpm = st.slider(tr("tempo"), 40, 180, 100)
 
     digest = hashlib.sha256(file_bytes).hexdigest()
-    if st.button("🎹 اقرأ النوتة وشغّل الصوتين", type="primary"):
-        with st.spinner("تتم قراءة النوتة. قد يستغرق التحليل الأول وقتًا أطول..."):
+    if st.button(tr("read_play"), type="primary"):
+        with st.spinner(tr("reading")):
             try:
                 xml_text = homr_convert(file_bytes, Path(uploaded.name).suffix.lower())
                 events, detected_tempo, meter, total_beats = parse_musicxml(xml_text)
                 st.session_state["score_result"] = (digest, events, detected_tempo, meter)
             except subprocess.TimeoutExpired:
-                st.error("انتهى وقت قراءة الصورة. جرّب صورة أصغر وواضحة.")
+                st.error(tr("timeout"))
                 st.session_state.pop("score_result", None)
             except Exception as error:
-                st.error(f"تعذّرت قراءة النوتة: {error}")
+                st.error(tr("read_failed"))
+                with st.expander(tr("technical_details")):
+                    st.code(str(error)[-1200:])
                 st.session_state.pop("score_result", None)
 
     saved = st.session_state.get("score_result")
     if saved and saved[0] == digest:
         _, events, detected_tempo, meter = saved
-        st.success(f"تم استخراج {len(events)} موضعًا موسيقيًا.")
+        st.success(tr("success", count=len(events)))
         if meter:
-            st.caption(f"الميزان المكتشف: {meter[0]}/{meter[1]}")
-        st.caption("النغمات المستخرجة: الصوت العلوي ثم الصوت السفلي")
+            st.caption(tr("meter", beats=meter[0], unit=meter[1]))
+        st.caption(tr("extracted"))
         for event in events:
-            upper = " + ".join(midi_name(n) for n in event["upper"]) or "سكتة"
-            lower = " + ".join(midi_name(n) for n in event["lower"]) or "سكتة"
-            st.write(f"العلوي: **{upper}**　|　السفلي: **{lower}**")
+            upper = " + ".join(midi_name(n) for n in event["upper"]) or tr("rest")
+            lower = " + ".join(midi_name(n) for n in event["lower"]) or tr("rest")
+            st.write(f"{tr('upper')}: **{upper}**　|　{tr('lower')}: **{lower}**")
         st.audio(synthesize_score(events, bpm), format="audio/wav")
 
 st.divider()
-st.subheader("تحليل الكونتربوينت")
-st.info("سيُضاف تحليل قواعد الكونتربوينت بعد تثبيت قراءة النوتة وتشغيلها.")
+st.subheader(tr("analysis"))
+st.info(tr("analysis_soon"))
