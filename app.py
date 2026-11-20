@@ -110,6 +110,49 @@ TEXT = {
         "study_title": "Study counterpoint",
         "study_text": "Review the main counterpoint ideas and rules:",
         "study_link": "Open the study guide",
+        "harmony_study_title": "Study traditional harmony",
+        "harmony_study_text": "Review chords, inversions, and tonal harmony:",
+        "harmony_study_link": "Open the harmony guide",
+        "harmony_intro": "Upload a score to identify chords, inversions, Roman numerals, and common voice-leading issues.",
+        "harmony_rules_title": "Traditional harmony: undergraduate essentials",
+        "harmony_rules": "**Chords and analysis**\n- Identify triads and seventh chords by quality and inversion; label chords with Roman numerals in the selected key.\n- Read progressions by harmonic function: tonic (T), predominant/subdominant (PD/S), and dominant (D).\n\n**Common-practice voice leading**\n- In four-part writing, keep each voice in a singable range and keep the upper three voices within an octave when possible.\n- Avoid parallel perfect fifths and octaves between the same pair of voices; prefer smooth motion and retain common tones when practical.\n- The leading tone usually rises to tonic; a chordal seventh usually resolves down by step.\n\n**Progression and cadences**\n- A common phrase plan moves from tonic through predominant to dominant, then resolves to tonic.\n- V–I is an authentic cadence, ending on V may form a half cadence, IV–I is plagal, and V–vi is deceptive.\n- These are common-practice conventions, not universal laws; chromatic chords and context can change the analysis.",
+        "harmony_key_label": "Key of the exercise",
+        "major_mode": "major",
+        "minor_mode": "minor",
+        "root_position": "root position",
+        "first_inversion": "first inversion",
+        "second_inversion": "second inversion",
+        "third_inversion": "third inversion",
+        "harmony_parallel_note": "Parallel-motion checks run only where four simultaneous notes can be aligned as a SATB texture.",
+        "harmony_analyze": "Analyze harmony",
+        "harmony_chords_title": "Recognized chords",
+        "harmony_chord_line": "Beat {beat}: {name} — {roman}, {figure}",
+        "harmony_function": "Function: {function}",
+        "function_tonic": "tonic (T)",
+        "function_predominant": "predominant (PD/S)",
+        "function_dominant": "dominant (D)",
+        "function_unknown": "chromatic/unclear function",
+        "quality_major": "major triad",
+        "quality_minor": "minor triad",
+        "quality_diminished": "diminished triad",
+        "quality_augmented": "augmented triad",
+        "quality_dominant_seventh": "dominant seventh",
+        "quality_major_seventh": "major seventh",
+        "quality_minor_seventh": "minor seventh",
+        "quality_half_diminished_seventh": "half-diminished seventh",
+        "quality_fully_diminished_seventh": "fully diminished seventh",
+        "harmony_unclear_chord": "Chord unclear (check the extracted notes or possible non-chord tones)",
+        "harmony_parallel": "Possible parallel {interval} between two voices near beat {beat}. Review the score; voice matching is estimated from pitch order.",
+        "harmony_parallel_fifth": "perfect fifths",
+        "harmony_parallel_octave": "octaves/unisons",
+        "harmony_cadence_authentic": "The ending may be an authentic cadence (V–I).",
+        "harmony_cadence_half": "The phrase ends on V, which may form a half cadence.",
+        "harmony_cadence_plagal": "The ending may be a plagal cadence (IV–I).",
+        "harmony_cadence_deceptive": "The ending may be a deceptive progression (V–vi).",
+        "harmony_report_note": "This is an initial classroom-style check. Confirm the key and extracted notes; the analyzer does not yet cover every chromatic chord or exception.",
+        "harmony_no_events": "No chord positions were available to analyze.",
+        "harmony_clean": "No parallel perfect fifths or octaves were detected in the four-part positions checked.",
+        "harmony_review": "Review the highlighted voice-leading positions below.",
         "confirm_notes": "I checked that the recognized notes match the score.",
         "confirm_notes_warning": "Please check the extracted notes above before running the analysis.",
         "celebration": "All current checks passed — excellent work!",
@@ -171,6 +214,49 @@ TEXT = {
         "study_title": "مراجعة الكونتربوينت",
         "study_text": "راجع أفكار وقواعد الكونتربوينت الأساسية:",
         "study_link": "افتح دليل المراجعة",
+        "harmony_study_title": "مراجعة الهارموني التقليدي",
+        "harmony_study_text": "راجع التآلفات والانقلابات والهارموني التونالي:",
+        "harmony_study_link": "افتح دليل الهارموني",
+        "harmony_intro": "ارفع النوتة للتعرّف على التآلفات وانقلاباتها وأرقامها الرومانية وبعض أخطاء قيادة الأصوات الشائعة.",
+        "harmony_rules_title": "أساسيات الهارموني التقليدي للمرحلة الجامعية",
+        "harmony_rules": "**التآلفات والتحليل**\n- تعرّف على الثلاثيات وتآلفات السابعة من حيث النوع والانقلاب، واكتب الرقم الروماني حسب السلم المختار.\n- اقرأ التتابع بحسب الوظيفة: تونك (T)، وما قبل الدومينانت/ساب دومينانت (PD/S)، ثم دومينانت (D).\n\n**قيادة الأصوات في الأسلوب الكلاسيكي**\n- في الكتابة لأربعة أصوات، حافظ على مدى مريح لكل صوت، وحاول ألا تتجاوز المسافة بين الأصوات الثلاثة العليا أوكتافًا.\n- تجنّب الخامسات والأوكتافات التامة المتوازية بين الصوتين نفسيهما، وفضّل الحركة السلسة والإبقاء على النغمات المشتركة متى أمكن.\n- غالبًا ما تصعد نغمة الحسّاس إلى قرار السلم، وتهبط السابعة في التآلف درجةً واحدة.\n\n**التتابعات والقفلات**\n- ينتقل كثير من الجمل من التونك إلى ما قبل الدومينانت ثم الدومينانت، ويُحلّ بعدها إلى التونك.\n- التتابع V–I قفلة تامة، والانتهاء على V قد يكون نصف قفلة، وIV–I قفلة بلاجالية، وV–vi قفلة خادعة.\n- هذه أعراف شائعة في الهارموني الكلاسيكي وليست قوانين مطلقة؛ فقد تغيّر التآلفات الكروماتية والسياق طريقة التحليل.",
+        "harmony_key_label": "مفتاح التمرين",
+        "major_mode": "كبير",
+        "minor_mode": "صغير",
+        "root_position": "وضع أساسي",
+        "first_inversion": "انقلاب أول",
+        "second_inversion": "انقلاب ثانٍ",
+        "third_inversion": "انقلاب ثالث",
+        "harmony_parallel_note": "فحص التوازي يعمل فقط عندما يمكن مطابقة أربع نغمات متزامنة كأصوات SATB.",
+        "harmony_analyze": "حلّل الهارموني",
+        "harmony_chords_title": "التآلفات التي تعرّف عليها التطبيق",
+        "harmony_chord_line": "النبضة {beat}: {name} — {roman}، {figure}",
+        "harmony_function": "الوظيفة: {function}",
+        "function_tonic": "تونك (T)",
+        "function_predominant": "ما قبل الدومينانت (PD/S)",
+        "function_dominant": "دومينانت (D)",
+        "function_unknown": "وظيفة كروماتية/غير محددة",
+        "quality_major": "ثلاثي كبير",
+        "quality_minor": "ثلاثي صغير",
+        "quality_diminished": "ثلاثي ناقص",
+        "quality_augmented": "ثلاثي زائد",
+        "quality_dominant_seventh": "سابعة دومينانت",
+        "quality_major_seventh": "سابعة كبيرة",
+        "quality_minor_seventh": "سابعة صغيرة",
+        "quality_half_diminished_seventh": "سابعة نصف ناقصة",
+        "quality_fully_diminished_seventh": "سابعة ناقصة",
+        "harmony_unclear_chord": "تعذّر تحديد التآلف (راجع النغمات المستخرجة أو احتمال وجود نغمات غير تآلفية)",
+        "harmony_parallel": "احتمال وجود {interval} متوازية بين صوتين قرب النبضة {beat}. راجع النوتة؛ فمطابقة الأصوات تقديرية حسب ترتيب طبقاتها.",
+        "harmony_parallel_fifth": "خامسات تامة",
+        "harmony_parallel_octave": "أوكتافات/يونيسون",
+        "harmony_cadence_authentic": "قد تكون نهاية الجملة قفلة تامة (V–I).",
+        "harmony_cadence_half": "تنتهي الجملة على V، وقد تكون نصف قفلة.",
+        "harmony_cadence_plagal": "قد تكون نهاية الجملة قفلة بلاجالية (IV–I).",
+        "harmony_cadence_deceptive": "قد يكون الختام تتابعًا خادعًا (V–vi).",
+        "harmony_report_note": "هذا فحص أولي على نمط تمارين الجامعة. تأكد من المفتاح والنغمات المقروءة؛ فالتحليل لا يغطي بعد كل التآلفات الكروماتية والاستثناءات.",
+        "harmony_no_events": "لا توجد مواضع تآلفية كافية لتحليلها.",
+        "harmony_clean": "لم يُكتشف توازٍ في الخامسات أو الأوكتافات التامة في المواضع الرباعية التي فُحصت.",
+        "harmony_review": "راجع مواضع قيادة الأصوات الموضحة أدناه.",
         "confirm_notes": "راجعت النغمات المستخرجة وتأكدت أنها تطابق النوتة.",
         "confirm_notes_warning": "راجع النغمات المستخرجة أعلاه قبل تشغيل التحليل.",
         "celebration": "اجتاز التمرين جميع الفحوص الحالية — أحسنت!",
@@ -192,12 +278,27 @@ def render_pdf_pages(pdf_bytes):
         ]
 
 
-st.sidebar.subheader(tr("study_title"))
-st.sidebar.write(tr("study_text"))
+is_harmony_mode = st.session_state.tutor_mode == "Harmony"
+sidebar_title_key = "harmony_study_title" if is_harmony_mode else "study_title"
+sidebar_text_key = "harmony_study_text" if is_harmony_mode else "study_text"
+sidebar_link_key = "harmony_study_link" if is_harmony_mode else "study_link"
+sidebar_url = (
+    "https://openmusictheory.github.io/triads.html"
+    if is_harmony_mode
+    else "https://www.masterthescore.com/article/counterpoint"
+)
+st.sidebar.subheader(tr(sidebar_title_key))
+st.sidebar.write(tr(sidebar_text_key))
 st.sidebar.link_button(
-    tr("study_link"),
-    "https://www.masterthescore.com/article/counterpoint",
+    tr(sidebar_link_key),
+    sidebar_url,
     use_container_width=True,
+)
+
+background_image = (
+    "https://sanramonacademyofmusic.com/wp-content/uploads/2025/01/music-theory.jpg"
+    if is_harmony_mode
+    else "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/500px-Johann_Sebastian_Bach.jpg"
 )
 
 st.markdown(
@@ -206,7 +307,7 @@ st.markdown(
       .stApp {
         background:
           linear-gradient(90deg, rgba(248,250,252,.88), rgba(248,250,252,.45)),
-          url('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/500px-Johann_Sebastian_Bach.jpg');
+          url('__BACKGROUND_IMAGE__');
         background-size: cover, auto 100vh;
         background-position: center, right center;
         background-repeat: no-repeat;
@@ -250,7 +351,9 @@ st.markdown(
         box-shadow: 0 -2px 12px rgba(15,23,42,.06);
       }
     </style>
-    """.replace("__DIRECTION__", "rtl" if IS_ARABIC else "ltr"),
+    """.replace("__DIRECTION__", "rtl" if IS_ARABIC else "ltr").replace(
+        "__BACKGROUND_IMAGE__", background_image
+    ),
     unsafe_allow_html=True,
 )
 
@@ -603,6 +706,179 @@ def analyze_species(events, meter, species, cantus_voice):
     return findings, len(attacks)
 
 
+HARMONY_KEYS = [
+    (0, "C"), (1, "C#"), (2, "D"), (3, "Eb"), (4, "E"), (5, "F"),
+    (6, "F#"), (7, "G"), (8, "Ab"), (9, "A"), (10, "Bb"), (11, "B"),
+]
+HARMONY_MODES = ["major", "minor"]
+CHORD_TEMPLATES = {
+    "major": ({0, 4, 7}, "major"),
+    "minor": ({0, 3, 7}, "minor"),
+    "diminished": ({0, 3, 6}, "diminished"),
+    "augmented": ({0, 4, 8}, "augmented"),
+    "dominant seventh": ({0, 4, 7, 10}, "dominant seventh"),
+    "major seventh": ({0, 4, 7, 11}, "major seventh"),
+    "minor seventh": ({0, 3, 7, 10}, "minor seventh"),
+    "half-diminished seventh": ({0, 3, 6, 10}, "half-diminished seventh"),
+    "fully diminished seventh": ({0, 3, 6, 9}, "fully diminished seventh"),
+}
+
+
+def harmony_key_label(option):
+    key_index, mode = option
+    tonic, tonic_name = HARMONY_KEYS[key_index]
+    mode_label = tr("major_mode") if mode == "major" else tr("minor_mode")
+    return f"{tonic_name} {mode_label}"
+
+
+def recognize_chord(pitches, tonic, mode):
+    pitch_classes = {pitch % 12 for pitch in pitches}
+    candidates = []
+    for root in pitch_classes:
+        intervals = {(pitch_class - root) % 12 for pitch_class in pitch_classes}
+        for quality, (template, _) in CHORD_TEMPLATES.items():
+            if intervals == template:
+                candidates.append((root, quality))
+    if not candidates:
+        return None
+
+    scale_intervals = (
+        [0, 2, 4, 5, 7, 9, 11]
+        if mode == "major"
+        else [0, 2, 3, 5, 7, 8, 10]
+    )
+    scale_roots = {(tonic + interval) % 12: degree for degree, interval in enumerate(scale_intervals)}
+    if mode == "minor":
+        scale_roots[(tonic + 11) % 12] = 6
+
+    def candidate_score(candidate):
+        root, quality = candidate
+        degree = scale_roots.get(root)
+        if degree is None:
+            return (1, 1, 7)
+        expected_quality = (
+            ["major", "minor", "minor", "major", "major", "minor", "diminished"][degree]
+            if mode == "major"
+            else ["minor", "diminished", "major", "minor", "minor", "major", "diminished"][degree]
+        )
+        if quality == "dominant seventh" and degree == 4:
+            return (0, 0, degree)
+        return (0, quality != expected_quality, degree)
+
+    root, quality = min(candidates, key=candidate_score)
+    degree = scale_roots.get(root)
+    return {"root": root, "quality": quality, "degree": degree}
+
+
+def chord_roman(chord, mode):
+    if chord["degree"] is None:
+        return "?"
+    numeral = ["I", "II", "III", "IV", "V", "VI", "VII"][chord["degree"]]
+    quality = chord["quality"]
+    if quality in ("minor", "minor seventh", "half-diminished seventh", "fully diminished seventh"):
+        numeral = numeral.lower()
+    if quality in ("diminished", "half-diminished seventh", "fully diminished seventh"):
+        numeral += "ø" if quality == "half-diminished seventh" else "°"
+    elif quality == "augmented":
+        numeral += "+"
+    if quality.endswith("seventh"):
+        numeral += "7"
+    return numeral
+
+
+def chord_inversion(chord, pitches):
+    bass_interval = (min(pitches) % 12 - chord["root"]) % 12
+    if chord["quality"].endswith("seventh"):
+        if bass_interval in (3, 4):
+            return tr("first_inversion"), "6/5"
+        if bass_interval in (6, 7, 8):
+            return tr("second_inversion"), "4/3"
+        if bass_interval in (9, 10, 11):
+            return tr("third_inversion"), "4/2"
+        return tr("root_position"), "7"
+    if bass_interval in (3, 4):
+        return tr("first_inversion"), "6/3"
+    if bass_interval in (6, 7, 8):
+        return tr("second_inversion"), "6/4"
+    return tr("root_position"), "5/3"
+
+
+def analyze_traditional_harmony(events, tonic, mode):
+    """Return cautious chord labels and SATB parallel-motion flags from a score."""
+    times = sorted({round(event["beat"], 4) for event in events})
+    slices = []
+    for beat in times:
+        pitches = []
+        for event in events:
+            onset = event["beat"]
+            if onset > beat + 1e-5:
+                continue
+            for staff in ("upper", "lower"):
+                durations = event.get(f"{staff}_durations", [])
+                for index, pitch in enumerate(event[staff]):
+                    duration = durations[index] if index < len(durations) else event["duration_beats"]
+                    if onset + duration > beat + 1e-5:
+                        pitches.append(pitch)
+        chord = recognize_chord(pitches, tonic, mode) if len(set(p % 12 for p in pitches)) >= 3 else None
+        if chord:
+            quality_key = "quality_" + chord["quality"].replace(" ", "_").replace("-", "_")
+            quality_label = tr(quality_key)
+            root_name = PITCH_NAMES[chord["root"]]
+            inversion_label, figure = chord_inversion(chord, pitches)
+            if chord["degree"] is None:
+                function = "function_unknown"
+            elif chord["degree"] in (0, 2, 5):
+                function = "function_tonic"
+            elif chord["degree"] in (1, 3):
+                function = "function_predominant"
+            else:
+                function = "function_dominant"
+            slices.append({
+                "beat": beat,
+                "pitches": pitches,
+                "chord": chord,
+                "roman": chord_roman(chord, mode),
+                "label": f"{root_name} {quality_label}",
+                "figure": f"{figure} ({inversion_label})",
+                "function": function,
+            })
+        else:
+            slices.append({"beat": beat, "pitches": pitches, "chord": None, "roman": None, "label": None})
+
+    parallel_findings = []
+    for previous, current in zip(slices, slices[1:]):
+        prev_voices = sorted(previous["pitches"], reverse=True)
+        curr_voices = sorted(current["pitches"], reverse=True)
+        if len(prev_voices) != 4 or len(curr_voices) != 4:
+            continue
+        for upper in range(4):
+            for lower in range(upper + 1, 4):
+                old_class = abs(prev_voices[upper] - prev_voices[lower]) % 12
+                new_class = abs(curr_voices[upper] - curr_voices[lower]) % 12
+                upper_motion = curr_voices[upper] - prev_voices[upper]
+                lower_motion = curr_voices[lower] - prev_voices[lower]
+                if upper_motion * lower_motion > 0 and old_class == new_class and new_class in (0, 7):
+                    interval = tr("harmony_parallel_fifth") if new_class == 7 else tr("harmony_parallel_octave")
+                    finding = (round(current["beat"], 2), interval)
+                    if finding not in parallel_findings:
+                        parallel_findings.append(finding)
+
+    ending = None
+    known = [slice_ for slice_ in slices if slice_["chord"] is not None]
+    if len(known) >= 2:
+        previous_chord, last_chord = known[-2]["chord"], known[-1]["chord"]
+        previous_degree, last_degree = previous_chord["degree"], last_chord["degree"]
+        if previous_degree == 4 and last_degree == 0:
+            ending = "harmony_cadence_authentic"
+        elif previous_degree == 3 and last_degree == 0:
+            ending = "harmony_cadence_plagal"
+        elif previous_degree == 4 and last_degree == 5:
+            ending = "harmony_cadence_deceptive"
+    if ending is None and known and known[-1]["chord"]["degree"] == 4:
+        ending = "harmony_cadence_half"
+    return slices, parallel_findings, ending
+
+
 def piano_note(freq, duration, sample_rate):
     n = max(1, int(duration * sample_rate))
     t = np.arange(n, dtype=np.float32) / sample_rate
@@ -688,8 +964,15 @@ def play_hidden_audio(audio_bytes):
 
 
 st.title(tr("harmony_title") if st.session_state.tutor_mode == "Harmony" else tr("title"))
-st.markdown(tr("intro"))
+st.markdown(
+    tr("harmony_intro")
+    if st.session_state.tutor_mode == "Harmony"
+    else tr("intro")
+)
 st.info(tr("quality_tip"))
+if st.session_state.tutor_mode == "Harmony":
+    with st.expander(tr("harmony_rules_title")):
+        st.markdown(tr("harmony_rules"))
 
 uploaded_files = st.file_uploader(
     tr("upload"),
@@ -854,16 +1137,72 @@ if score_pages:
                             st.caption(f"{tr('suggestion')}: {suggestion}")
                 else:
                     st.success(tr("analysis_clear"))
+        elif st.session_state.tutor_mode == "Harmony":
+            harmony_key_options = [
+                (key_index, mode)
+                for mode in HARMONY_MODES
+                for key_index in range(len(HARMONY_KEYS))
+            ]
+            selected_harmony_key = st.selectbox(
+                tr("harmony_key_label"),
+                options=harmony_key_options,
+                format_func=harmony_key_label,
+                key=f"harmony_key_{digest}",
+            )
+            key_index, harmony_mode = selected_harmony_key
+            tonic, _ = HARMONY_KEYS[key_index]
+            notes_confirmed = st.checkbox(
+                tr("confirm_notes"), key=f"harmony_confirm_notes_{digest}"
+            )
+            if st.button(tr("harmony_analyze"), key=f"analyze_harmony_{digest}"):
+                if not notes_confirmed:
+                    st.warning(tr("confirm_notes_warning"))
+                else:
+                    chords, parallel_findings, ending = analyze_traditional_harmony(
+                        events, tonic, harmony_mode
+                    )
+                    st.session_state.setdefault("harmony_reports", {})[digest] = (
+                        selected_harmony_key, chords, parallel_findings, ending
+                    )
 
-st.divider()
-st.subheader(
-    tr("harmony_analysis")
-    if st.session_state.tutor_mode == "Harmony"
-    else tr("analysis")
-)
-st.info(
-    tr("harmony_analysis_soon")
-    if st.session_state.tutor_mode == "Harmony"
-    else tr("analysis_soon")
-)
+            harmony_report = st.session_state.get("harmony_reports", {}).get(digest)
+            if harmony_report and harmony_report[0] == selected_harmony_key:
+                _, chords, parallel_findings, ending = harmony_report
+                st.info(tr("harmony_report_note"))
+                if not any(chord_slice["chord"] for chord_slice in chords):
+                    st.warning(tr("harmony_no_events"))
+                else:
+                    st.subheader(tr("harmony_chords_title"))
+                    for chord_slice in chords:
+                        beat_label = f"{chord_slice['beat'] + 1:g}"
+                        if chord_slice["chord"] is None:
+                            chord_text = tr("harmony_unclear_chord")
+                        else:
+                            chord_text = tr(
+                                "harmony_chord_line",
+                                beat=beat_label,
+                                name=chord_slice["label"],
+                                roman=chord_slice["roman"],
+                                figure=chord_slice["figure"],
+                            )
+                        st.write(chord_text)
+                        if chord_slice["chord"] is not None:
+                            st.caption(tr(
+                                "harmony_function",
+                                function=tr(chord_slice["function"]),
+                            ))
+                    st.caption(tr("harmony_parallel_note"))
+                    if parallel_findings:
+                        st.warning(tr("harmony_review"))
+                        for beat, interval in parallel_findings:
+                            st.error(tr("harmony_parallel", interval=interval, beat=beat))
+                    else:
+                        st.success(tr("harmony_clean"))
+                    if ending:
+                        st.info(tr(ending))
+
+if st.session_state.tutor_mode != "Harmony":
+    st.divider()
+    st.subheader(tr("analysis"))
+    st.info(tr("analysis_soon"))
 st.markdown(f'<div class="app-footer">{tr("footer")}</div>', unsafe_allow_html=True)
