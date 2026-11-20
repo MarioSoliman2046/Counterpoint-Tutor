@@ -18,7 +18,6 @@ from PIL import Image, UnidentifiedImageError
 
 st.set_page_config(
     page_title="Counterpoint Tutor",
-    page_icon="🎼",
     layout="wide",
 )
 
@@ -55,8 +54,8 @@ IS_ARABIC = LANGUAGE == "العربية"
 
 TEXT = {
     "en": {
-        "title": "🎼 Counterpoint Tutor",
-        "harmony_title": "🎼 Harmony Tutor",
+        "title": "Counterpoint Tutor",
+        "harmony_title": "Harmony Tutor",
         "intro": "Upload one or more printed score images or PDFs. Each image or PDF page can be read and played on its own.",
         "quality_tip": "For best results, use a clear, straight image showing both complete staves, including the clefs and key signature.",
         "upload": "Choose one or more score images or PDFs",
@@ -116,8 +115,8 @@ TEXT = {
         "celebration": "All current checks passed — excellent work!",
     },
     "ar": {
-        "title": "🎼 مدرس الكونتربوينت",
-        "harmony_title": "🎼 مدرس الهارموني",
+        "title": "مدرس الكونتربوينت",
+        "harmony_title": "مدرس الهارموني",
         "intro": "ارفع صورة أو أكثر للنوتة أو ملفات PDF. تُقرأ كل صورة أو صفحة PDF وتُشغّل بشكل مستقل.",
         "quality_tip": "لأفضل نتيجة، استخدم صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، مع المفتاح الموسيقي وعلامة التحويل.",
         "upload": "اختر صورة أو أكثر للنوتة أو ملفات PDF",
