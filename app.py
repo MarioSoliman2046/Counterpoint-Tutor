@@ -60,6 +60,9 @@ TEXT = {
         "intro": "Upload one or more printed score images or PDFs. Each image or PDF page can be read and played on its own.",
         "quality_tip": "For best results, use a clear, straight image showing both complete staves, including the clefs and key signature.",
         "upload": "Choose one or more score images or PDFs",
+        "camera": "Or take a photo of the score",
+        "camera_tip": "On a phone, your browser will ask for camera access.",
+        "camera_score": "Camera photo",
         "invalid_image": "This file is not a valid image. Choose a PNG or JPG file.",
         "invalid_pdf": "This PDF could not be opened. Please choose a valid PDF.",
         "select_score": "Choose an exercise or PDF page",
@@ -116,6 +119,9 @@ TEXT = {
         "intro": "ارفع صورة أو أكثر للنوتة أو ملفات PDF. تُقرأ كل صورة أو صفحة PDF وتُشغّل بشكل مستقل.",
         "quality_tip": "لأفضل نتيجة، استخدم صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، مع المفتاح الموسيقي وعلامة التحويل.",
         "upload": "اختر صورة أو أكثر للنوتة أو ملفات PDF",
+        "camera": "أو صوّر النوتة بالكاميرا",
+        "camera_tip": "على الهاتف، سيطلب المتصفح السماح باستخدام الكاميرا.",
+        "camera_score": "صورة بالكاميرا",
         "invalid_image": "الملف ليس صورة صالحة. اختر ملف PNG أو JPG.",
         "invalid_pdf": "تعذّر فتح ملف PDF. اختر ملف PDF صالحًا.",
         "select_score": "اختر تمرينًا أو صفحة من PDF",
@@ -687,6 +693,8 @@ uploaded_files = st.file_uploader(
     type=["png", "jpg", "jpeg", "pdf"],
     accept_multiple_files=True,
 )
+st.caption(tr("camera_tip"))
+camera_photo = st.camera_input(tr("camera"), resolution="1080p")
 
 score_pages = []
 for uploaded_file in uploaded_files or []:
@@ -707,6 +715,15 @@ for uploaded_file in uploaded_files or []:
             score_pages.append((uploaded_file.name, file_bytes, suffix))
         except (UnidentifiedImageError, OSError):
             st.error(f"{uploaded_file.name}: {tr('invalid_image')}")
+
+if camera_photo is not None:
+    try:
+        camera_image = Image.open(io.BytesIO(camera_photo.getvalue())).convert("RGB")
+        camera_bytes = io.BytesIO()
+        camera_image.save(camera_bytes, format="PNG")
+        score_pages.append((tr("camera_score"), camera_bytes.getvalue(), ".png"))
+    except (UnidentifiedImageError, OSError):
+        st.error(tr("invalid_image"))
 
 if score_pages:
     selected_index = st.selectbox(
