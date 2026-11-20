@@ -61,6 +61,8 @@ TEXT = {
         "quality_tip": "For best results, use a clear, straight image showing both complete staves, including the clefs and key signature.",
         "upload": "Choose one or more score images or PDFs",
         "camera": "Or take a photo of the score",
+        "camera_close": "Close camera",
+        "camera_capture": "Take a score photo",
         "camera_tip": "On a phone, your browser will ask for camera access.",
         "camera_score": "Camera photo",
         "invalid_image": "This file is not a valid image. Choose a PNG or JPG file.",
@@ -120,6 +122,8 @@ TEXT = {
         "quality_tip": "لأفضل نتيجة، استخدم صورة واضحة ومستقيمة يظهر فيها المدرّجان كاملين، مع المفتاح الموسيقي وعلامة التحويل.",
         "upload": "اختر صورة أو أكثر للنوتة أو ملفات PDF",
         "camera": "أو صوّر النوتة بالكاميرا",
+        "camera_close": "إغلاق الكاميرا",
+        "camera_capture": "التقط صورة للنوتة",
         "camera_tip": "على الهاتف، سيطلب المتصفح السماح باستخدام الكاميرا.",
         "camera_score": "صورة بالكاميرا",
         "invalid_image": "الملف ليس صورة صالحة. اختر ملف PNG أو JPG.",
@@ -693,8 +697,32 @@ uploaded_files = st.file_uploader(
     type=["png", "jpg", "jpeg", "pdf"],
     accept_multiple_files=True,
 )
-st.caption(tr("camera_tip"))
-camera_photo = st.camera_input(tr("camera"), resolution="1080p")
+
+if "camera_open" not in st.session_state:
+    st.session_state["camera_open"] = False
+
+camera_photo = None
+if st.session_state["camera_open"]:
+    if st.button(tr("camera_close"), key="close_score_camera"):
+        st.session_state["camera_open"] = False
+        st.rerun()
+    camera_photo = st.camera_input(tr("camera_capture"), resolution="1080p")
+    if camera_photo is not None:
+        try:
+            captured = Image.open(io.BytesIO(camera_photo.getvalue())).convert("RGB")
+            captured_buffer = io.BytesIO()
+            captured.save(captured_buffer, format="PNG")
+            st.session_state["camera_capture_bytes"] = captured_buffer.getvalue()
+            st.session_state["camera_open"] = False
+            st.rerun()
+        except (UnidentifiedImageError, OSError):
+            st.error(tr("invalid_image"))
+else:
+    st.caption(tr("camera_tip"))
+    if st.button(tr("camera"), key="open_score_camera"):
+        st.session_state["camera_open"] = True
+        st.session_state.pop("camera_capture_bytes", None)
+        st.rerun()
 
 score_pages = []
 for uploaded_file in uploaded_files or []:
@@ -716,14 +744,9 @@ for uploaded_file in uploaded_files or []:
         except (UnidentifiedImageError, OSError):
             st.error(f"{uploaded_file.name}: {tr('invalid_image')}")
 
-if camera_photo is not None:
-    try:
-        camera_image = Image.open(io.BytesIO(camera_photo.getvalue())).convert("RGB")
-        camera_bytes = io.BytesIO()
-        camera_image.save(camera_bytes, format="PNG")
-        score_pages.append((tr("camera_score"), camera_bytes.getvalue(), ".png"))
-    except (UnidentifiedImageError, OSError):
-        st.error(tr("invalid_image"))
+camera_capture_bytes = st.session_state.get("camera_capture_bytes")
+if camera_capture_bytes:
+    score_pages.append((tr("camera_score"), camera_capture_bytes, ".png"))
 
 if score_pages:
     selected_index = st.selectbox(
